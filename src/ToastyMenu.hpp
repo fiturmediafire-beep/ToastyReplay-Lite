@@ -126,7 +126,7 @@ class ToastyMenu : public geode::Popup {
     void ccTouchEnded(cocos2d::CCTouch* touch, cocos2d::CCEvent* event) override;
 
   public:
-    static void finishAddMacroFile(std::optional<std::filesystem::path> picked);
+    static void finishAddMacroFile(std::optional<asp::fs::Path> picked);
     static ToastyMenu* create();
     static bool isOpen();
     static bool handleKey(cocos2d::enumKeyCodes key, bool down, bool repeat);
