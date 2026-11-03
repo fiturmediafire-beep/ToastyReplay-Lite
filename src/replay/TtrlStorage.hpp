@@ -44,21 +44,21 @@ namespace toasty::replay::ttrl {
 
     class Storage {
       public:
-        explicit Storage(asp::fs::path directory);
+        explicit Storage(asp::fs::Path directory);
 
-        asp::fs::path const& directory() const;
+        asp::fs::Path const& directory() const;
         SaveResult save(geode::ZStringView name, Replay const& replay) const;
-        SaveResult importFile(asp::fs::path const& source) const;
+        SaveResult importFile(asp::fs::Path const& source) const;
         LoadResult load(geode::ZStringView fileName) const;
         RemoveResult remove(geode::ZStringView fileName) const;
         RenameResult rename(geode::ZStringView fileName, geode::ZStringView name) const;
         ListResult list() const;
 
       private:
-        asp::fs::path m_directory;
+        asp::fs::Path m_directory;
     };
 
-    asp::fs::path defaultReplayDirectory();
+    asp::fs::Path defaultReplayDirectory();
     std::string displayName(geode::ZStringView fileName);
     geode::ZStringView errorMessage(StorageError error);
     std::string describe(StorageFailure const& failure);
