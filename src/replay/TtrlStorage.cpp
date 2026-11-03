@@ -1,3 +1,4 @@
+
 #include "TtrlStorage.hpp"
 
 #include <asp/fs.hpp>
@@ -7,6 +8,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
+#include <system_error>
 #include <utility>
 
 using namespace geode::prelude;
@@ -118,7 +121,7 @@ namespace toasty::replay::ttrl {
         return buf.str();
     }
 
-    static Result<void, StorageFailure> ensureDirectory(asp::fs::path const& directory) {
+    static Result<void, StorageFailure> ensureDirectory(asp::fs::Path const& directory) {
         auto statusRes = asp::fs::status(directory);
         if (statusRes.isOk()) {
             if (statusRes.unwrap().isDirectory())
@@ -138,8 +141,8 @@ namespace toasty::replay::ttrl {
         return Ok();
     }
 
-    static Result<asp::fs::path, StorageFailure> availablePath(asp::fs::path const& directory,
-                                                               ZStringView name) {
+    static Result<asp::fs::Path, StorageFailure> availablePath(
+        asp::fs::Path const& directory, ZStringView name) {
         for (size_t index = 0; index < MaximumNameAttempts; ++index) {
             auto path = directory / replayFileName(name, index);
             auto statusRes = asp::fs::status(path);
@@ -153,7 +156,7 @@ namespace toasty::replay::ttrl {
         return failure(StorageError::TooManyFiles);
     }
 
-    static std::string pathFileName(asp::fs::path const& path) {
+    static std::string pathFileName(asp::fs::Path const& path) {
         return utils::string::pathToString(path.filename());
     }
 
@@ -353,10 +356,12 @@ namespace toasty::replay::ttrl {
                     if (files.size() == MaximumReplayFiles) {
                         return failure(StorageError::TooManyFiles);
                     }
-                    auto writeTime = asp::fs::lastWriteTime(path);
-                    files.emplace_back(writeTime.isOk() ? writeTime.unwrap()
-                                                        : std::filesystem::file_time_type::min(),
-                                       std::move(name));
+
+                    auto stdP = path.toStdPath().unwrapOrDefault();
+                    std::error_code _ec;
+                    auto writeTime_raw = std::filesystem::last_write_time(stdP, _ec);
+                    auto writeTime = _ec ? std::filesystem::file_time_type::min() : writeTime_raw;
+                    files.emplace_back(writeTime, std::move(name));
                 }
             }
         }
