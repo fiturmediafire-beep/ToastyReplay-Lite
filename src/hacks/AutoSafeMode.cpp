@@ -18,8 +18,8 @@ namespace {
 } // namespace
 
 class $modify(AutoSafeModePlayLayer, PlayLayer) {
-    bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
-        if (!PlayLayer::init(level, useReplay, dontCreateObjects)) {
+bool init(GJGameLevel* level, bool useReplay) {
+    if (!PlayLayer::init(level, useReplay)) {
             return false; 
         }
         this->schedule(schedule_selector(AutoSafeModePlayLayer::checkValues));
