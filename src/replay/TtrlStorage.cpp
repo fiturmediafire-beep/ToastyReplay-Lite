@@ -166,10 +166,10 @@ namespace toasty::replay::ttrl {
         return replayLoadFileName(fileName) == std::string(view);
     }
 
-    Storage::Storage(asp::fs::path directory)
+    Storage::Storage(asp::fs::Path directory)
         : m_directory(std::move(directory)) {}
 
-    asp::fs::path const& Storage::directory() const {
+    asp::fs::Path const& Storage::directory() const {
         return m_directory;
     }
 
@@ -190,7 +190,7 @@ namespace toasty::replay::ttrl {
         return Ok(pathFileName(target));
     }
 
-    SaveResult Storage::importFile(asp::fs::path const& source) const {
+    SaveResult Storage::importFile(asp::fs::Path const& source) const {
         GEODE_UNWRAP(ensureDirectory(m_directory));
 
         auto statusRes = asp::fs::status(source);
