@@ -232,11 +232,13 @@ static std::string speedText(double speed) {
 }
 
 static std::optional<std::filesystem::file_time_type> macroDirectoryTime() {
-    auto time = asp::fs::lastWriteTime(toasty::replay::ttrl::defaultReplayDirectory());
-    if (time.isErr()) {
+    auto stdPath = toasty::replay::ttrl::defaultReplayDirectory().toStdPath().unwrapOrDefault();
+    std::error_code ec;
+    auto time = std::filesystem::last_write_time(stdPath, ec);
+    if (ec) {
         return std::nullopt;
     }
-    return time.unwrap();
+    return time;
 }
 
 static std::string durationText(double seconds) {
@@ -1659,7 +1661,7 @@ void ToastyMenu::onSelectMacro(CCObject* sender) {
     this->updateMacroInfo();
 }
 
-void ToastyMenu::finishAddMacroFile(std::optional<std::filesystem::path> picked) {
+void ToastyMenu::finishAddMacroFile(std::optional<asp::fs::Path> picked) {
     if (!picked) {
         return;
     }
