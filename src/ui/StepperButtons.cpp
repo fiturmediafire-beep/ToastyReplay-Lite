@@ -78,8 +78,8 @@ class $modify(StepperPlayLayer, PlayLayer) {
         return button;
     }
 
-    bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
-        if (!PlayLayer::init(level, useReplay, dontCreateObjects)) {
+bool init(GJGameLevel* level, bool dontCreateObjects) {
+    if (!PlayLayer::init(level, dontCreateObjects)) {
             return false;
         }
 
