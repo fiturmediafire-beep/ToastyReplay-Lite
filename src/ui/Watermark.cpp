@@ -36,8 +36,8 @@ namespace toasty::ui {
 } // namespace toasty::ui
 
 class $modify(WatermarkPlayLayer, PlayLayer) {
-    bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
-        if (!PlayLayer::init(level, useReplay, dontCreateObjects)) {
+bool init(GJGameLevel* level, bool dontCreateObjects) {
+    if (!PlayLayer::init(level, dontCreateObjects)) {
             return false;
         }
 
