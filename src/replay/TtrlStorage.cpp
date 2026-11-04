@@ -1,4 +1,3 @@
-
 #include "TtrlStorage.hpp"
 
 #include <asp/fs.hpp>
@@ -121,43 +120,47 @@ namespace toasty::replay::ttrl {
         return buf.str();
     }
 
+    static std::filesystem::path toStd(asp::fs::Path const& p) {
+        return p.toStdPath().unwrapOrDefault();
+    }
+
     static Result<void, StorageFailure> ensureDirectory(asp::fs::Path const& directory) {
-        auto statusRes = asp::fs::status(directory);
-        if (statusRes.isOk()) {
-            if (statusRes.unwrap().isDirectory())
+        std::error_code ec;
+        auto stdPath = toStd(directory);
+        auto status = std::filesystem::status(stdPath, ec);
+        if (!ec) {
+            if (std::filesystem::is_directory(status))
                 return Ok();
             return failure(StorageError::DirectoryUnavailable);
         }
-
-        auto statusError = statusRes.unwrapErr();
-        if (statusError.getCode() != std::errc::no_such_file_or_directory) {
-            return failure(StorageError::DirectoryUnavailable, statusError.message());
+        if (ec != std::errc::no_such_file_or_directory) {
+            return failure(StorageError::DirectoryUnavailable, ec.message());
         }
-
-        auto createRes = asp::fs::createDirAll(directory);
-        if (createRes.isErr()) {
-            return failure(StorageError::DirectoryUnavailable, createRes.unwrapErr().message());
+        std::filesystem::create_directories(stdPath, ec);
+        if (ec) {
+            return failure(StorageError::DirectoryUnavailable, ec.message());
         }
         return Ok();
     }
 
-    static Result<asp::fs::Path, StorageFailure> availablePath(
-        asp::fs::Path const& directory, ZStringView name) {
+    static Result<asp::fs::Path, StorageFailure> availablePath(asp::fs::Path const& directory,
+                                                               ZStringView name) {
         for (size_t index = 0; index < MaximumNameAttempts; ++index) {
             auto path = directory / replayFileName(name, index);
-            auto statusRes = asp::fs::status(path);
-            if (statusRes.isErr()) {
-                if (statusRes.unwrapErr().getCode() == std::errc::no_such_file_or_directory) {
-                    return Ok(path);
-                }
-                return failure(StorageError::DirectoryUnavailable, statusRes.unwrapErr().message());
+            std::error_code ec;
+            std::filesystem::status(toStd(path), ec);
+            if (ec == std::errc::no_such_file_or_directory) {
+                return Ok(path);
+            }
+            if (ec) {
+                return failure(StorageError::DirectoryUnavailable, ec.message());
             }
         }
         return failure(StorageError::TooManyFiles);
     }
 
     static std::string pathFileName(asp::fs::Path const& path) {
-        return utils::string::pathToString(path.filename());
+        return toStd(path).filename().string();
     }
 
     static bool validReplayFileName(ZStringView fileName) {
@@ -178,242 +181,172 @@ namespace toasty::replay::ttrl {
 
     SaveResult Storage::save(ZStringView name, Replay const& replay) const {
         GEODE_UNWRAP(ensureDirectory(m_directory));
-
         auto encoded = codec::encode(replay);
         if (encoded.isErr()) {
             return failure(StorageError::InvalidReplay, {}, encoded.unwrapErr());
         }
-
         GEODE_UNWRAP_INTO(auto target, availablePath(m_directory, name));
         auto writeRes = utils::file::writeBinarySafe(target, encoded.unwrap());
         if (writeRes.isErr()) {
             return failure(StorageError::WriteFailed, writeRes.unwrapErr());
         }
-
         return Ok(pathFileName(target));
     }
 
     SaveResult Storage::importFile(asp::fs::Path const& source) const {
         GEODE_UNWRAP(ensureDirectory(m_directory));
-
-        auto statusRes = asp::fs::status(source);
-        if (statusRes.isErr()) {
-            auto err = statusRes.unwrapErr();
-            if (err.getCode() == std::errc::no_such_file_or_directory) {
+        std::error_code ec;
+        auto stdSource = toStd(source);
+        auto status = std::filesystem::status(stdSource, ec);
+        if (ec) {
+            if (ec == std::errc::no_such_file_or_directory)
                 return failure(StorageError::FileNotFound);
-            }
-            return failure(StorageError::ReadFailed, err.message());
+            return failure(StorageError::ReadFailed, ec.message());
         }
-
-        auto status = statusRes.unwrap();
-        if (status.isSymlink() || !status.isFile()) {
+        if (std::filesystem::is_symlink(status) || !std::filesystem::is_regular_file(status))
             return failure(StorageError::InvalidFile);
-        }
-
         auto readRes = utils::file::readBinary(source);
-        if (readRes.isErr()) {
+        if (readRes.isErr())
             return failure(StorageError::ReadFailed, readRes.unwrapErr());
-        }
-
         auto bytes = std::move(readRes.unwrap());
-        if (bytes.size() > codec::MaximumFileSize) {
+        if (bytes.size() > codec::MaximumFileSize)
             return failure(StorageError::FileTooLarge);
-        }
-
         auto replay = codec::decode(bytes);
-        if (replay.isErr()) {
+        if (replay.isErr())
             return failure(StorageError::InvalidReplay, {}, replay.unwrapErr());
-        }
-
         GEODE_UNWRAP_INTO(auto target, availablePath(m_directory, pathFileName(source)));
         auto writeRes = utils::file::writeBinarySafe(target, bytes);
-        if (writeRes.isErr()) {
+        if (writeRes.isErr())
             return failure(StorageError::WriteFailed, writeRes.unwrapErr());
-        }
-
         return Ok(pathFileName(target));
     }
 
     LoadResult Storage::load(ZStringView fileName) const {
         GEODE_UNWRAP(ensureDirectory(m_directory));
-
         auto path = m_directory / replayLoadFileName(fileName);
-        auto statusRes = asp::fs::status(path);
-        if (statusRes.isErr()) {
-            auto err = statusRes.unwrapErr();
-            if (err.getCode() == std::errc::no_such_file_or_directory) {
+        std::error_code ec;
+        auto status = std::filesystem::status(toStd(path), ec);
+        if (ec) {
+            if (ec == std::errc::no_such_file_or_directory)
                 return failure(StorageError::FileNotFound);
-            }
-            return failure(StorageError::ReadFailed, err.message());
+            return failure(StorageError::ReadFailed, ec.message());
         }
-
-        auto status = statusRes.unwrap();
-        if (status.isSymlink() || !status.isFile()) {
+        if (std::filesystem::is_symlink(status) || !std::filesystem::is_regular_file(status))
             return failure(StorageError::InvalidFile);
-        }
-
         auto readRes = utils::file::readBinary(path);
-        if (readRes.isErr()) {
+        if (readRes.isErr())
             return failure(StorageError::ReadFailed, readRes.unwrapErr());
-        }
-
         auto bytes = std::move(readRes.unwrap());
-        if (bytes.size() > codec::MaximumFileSize) {
+        if (bytes.size() > codec::MaximumFileSize)
             return failure(StorageError::FileTooLarge);
-        }
-
         auto replay = codec::decode(bytes);
-        if (replay.isErr()) {
+        if (replay.isErr())
             return failure(StorageError::InvalidReplay, {}, replay.unwrapErr());
-        }
         return Ok(std::move(replay.unwrap()));
     }
 
     RemoveResult Storage::remove(ZStringView fileName) const {
-        if (!validReplayFileName(fileName)) {
+        if (!validReplayFileName(fileName))
             return failure(StorageError::InvalidFile);
-        }
         GEODE_UNWRAP(ensureDirectory(m_directory));
-
         auto path = m_directory / std::string(fileName.view());
-        auto statusRes = asp::fs::status(path);
-        if (statusRes.isErr()) {
-            auto err = statusRes.unwrapErr();
-            if (err.getCode() == std::errc::no_such_file_or_directory) {
+        std::error_code ec;
+        auto status = std::filesystem::status(toStd(path), ec);
+        if (ec) {
+            if (ec == std::errc::no_such_file_or_directory)
                 return failure(StorageError::FileNotFound);
-            }
-            return failure(StorageError::DeleteFailed, err.message());
+            return failure(StorageError::DeleteFailed, ec.message());
         }
-
-        auto status = statusRes.unwrap();
-        if (status.isSymlink() || !status.isFile()) {
+        if (std::filesystem::is_symlink(status) || !std::filesystem::is_regular_file(status))
             return failure(StorageError::InvalidFile);
-        }
-
-        auto removeRes = asp::fs::remove(path);
-        if (removeRes.isErr()) {
-            return failure(StorageError::DeleteFailed, removeRes.unwrapErr().message());
-        }
+        std::filesystem::remove(toStd(path), ec);
+        if (ec)
+            return failure(StorageError::DeleteFailed, ec.message());
         return Ok();
     }
 
     RenameResult Storage::rename(ZStringView fileName, ZStringView name) const {
-        if (!validReplayFileName(fileName)) {
+        if (!validReplayFileName(fileName))
             return failure(StorageError::InvalidFile);
-        }
         GEODE_UNWRAP(ensureDirectory(m_directory));
-
         auto source = m_directory / std::string(fileName.view());
-        auto sourceStatus = asp::fs::status(source);
-        if (sourceStatus.isErr()) {
-            auto err = sourceStatus.unwrapErr();
-            if (err.getCode() == std::errc::no_such_file_or_directory) {
+        std::error_code ec;
+        auto stdSource = toStd(source);
+        auto sourceStatus = std::filesystem::status(stdSource, ec);
+        if (ec) {
+            if (ec == std::errc::no_such_file_or_directory)
                 return failure(StorageError::FileNotFound);
-            }
-            return failure(StorageError::RenameFailed, err.message());
+            return failure(StorageError::RenameFailed, ec.message());
         }
-        auto status = sourceStatus.unwrap();
-        if (status.isSymlink() || !status.isFile()) {
+        if (std::filesystem::is_symlink(sourceStatus) || !std::filesystem::is_regular_file(sourceStatus))
             return failure(StorageError::InvalidFile);
-        }
-
         auto targetName = replayFileName(name, 0);
-        if (targetName == std::string(fileName.view())) {
+        if (targetName == std::string(fileName.view()))
             return Ok(std::move(targetName));
-        }
-
-        auto target = m_directory / targetName;
-        auto targetStatus = asp::fs::status(target);
-        if (targetStatus.isOk()) {
+        auto stdTarget = toStd(m_directory / targetName);
+        std::filesystem::status(stdTarget, ec);
+        if (!ec)
             return failure(StorageError::NameTaken);
-        }
-        if (targetStatus.unwrapErr().getCode() != std::errc::no_such_file_or_directory) {
-            return failure(StorageError::RenameFailed, targetStatus.unwrapErr().message());
-        }
-
-        auto renameResult = asp::fs::rename(source, target);
-        if (renameResult.isErr()) {
-            return failure(StorageError::RenameFailed, renameResult.unwrapErr().message());
-        }
+        if (ec != std::errc::no_such_file_or_directory)
+            return failure(StorageError::RenameFailed, ec.message());
+        std::filesystem::rename(stdSource, stdTarget, ec);
+        if (ec)
+            return failure(StorageError::RenameFailed, ec.message());
         return Ok(std::move(targetName));
     }
 
     ListResult Storage::list() const {
         GEODE_UNWRAP(ensureDirectory(m_directory));
-
-        auto dirRes = asp::fs::iterdir(m_directory);
-        if (dirRes.isErr()) {
-            return failure(StorageError::DirectoryUnavailable, dirRes.unwrapErr().message());
-        }
-
+        std::error_code ec;
+        std::filesystem::directory_iterator dirIt(toStd(m_directory), ec);
+        if (ec)
+            return failure(StorageError::DirectoryUnavailable, ec.message());
         std::vector<std::pair<std::filesystem::file_time_type, std::string>> files;
-        for (auto const& entry : asp::iter::consume(dirRes.unwrap())) {
-            auto const& path = entry.path();
-            auto isFileRes = asp::fs::isFile(path);
-            if (isFileRes.isOk() && isFileRes.unwrap()) {
-                auto name = pathFileName(path);
-                if (endsWithTtrl(name)) {
-                    if (files.size() == MaximumReplayFiles) {
-                        return failure(StorageError::TooManyFiles);
-                    }
-
-                    auto stdP = path.toStdPath().unwrapOrDefault();
-                    std::error_code _ec;
-                    auto writeTime_raw = std::filesystem::last_write_time(stdP, _ec);
-                    auto writeTime = _ec ? std::filesystem::file_time_type::min() : writeTime_raw;
-                    files.emplace_back(writeTime, std::move(name));
-                }
-            }
+        for (auto const& entry : dirIt) {
+            if (!entry.is_regular_file())
+                continue;
+            auto name = entry.path().filename().string();
+            if (!endsWithTtrl(name))
+                continue;
+            if (files.size() == MaximumReplayFiles)
+                return failure(StorageError::TooManyFiles);
+            auto writeTime = entry.last_write_time(ec);
+            if (ec) writeTime = std::filesystem::file_time_type::min();
+            files.emplace_back(writeTime, std::move(name));
         }
-
         std::sort(files.begin(), files.end(), [](auto const& left, auto const& right) {
-            if (left.first != right.first) {
+            if (left.first != right.first)
                 return left.first > right.first;
-            }
             return left.second < right.second;
         });
         std::vector<std::string> names;
         names.reserve(files.size());
-        for (auto& file : files) {
+        for (auto& file : files)
             names.push_back(std::move(file.second));
-        }
         return Ok(std::move(names));
     }
 
     std::string displayName(ZStringView fileName) {
         auto view = fileName.view();
-        if (endsWithTtrl(fileName)) {
+        if (endsWithTtrl(fileName))
             view.remove_suffix(5);
-        }
         return std::string(view);
     }
 
     ZStringView errorMessage(StorageError error) {
         switch (error) {
-        case StorageError::DirectoryUnavailable:
-            return "The replay directory is unavailable";
-        case StorageError::TooManyFiles:
-            return "There are too many replay files";
-        case StorageError::FileNotFound:
-            return "The replay file was not found";
-        case StorageError::NameTaken:
-            return "A replay already uses that name";
-        case StorageError::InvalidFile:
-            return "The replay path is not a regular file";
-        case StorageError::FileTooLarge:
-            return "The replay file is too large";
-        case StorageError::OpenFailed:
-            return "The replay file could not be opened";
-        case StorageError::ReadFailed:
-            return "The replay file could not be read";
-        case StorageError::WriteFailed:
-            return "The replay file could not be written";
-        case StorageError::RenameFailed:
-            return "The replay file could not be finalized";
-        case StorageError::DeleteFailed:
-            return "The replay file could not be deleted";
-        case StorageError::InvalidReplay:
-            return "The replay data is invalid";
+        case StorageError::DirectoryUnavailable: return "The replay directory is unavailable";
+        case StorageError::TooManyFiles:         return "There are too many replay files";
+        case StorageError::FileNotFound:         return "The replay file was not found";
+        case StorageError::NameTaken:            return "A replay already uses that name";
+        case StorageError::InvalidFile:          return "The replay path is not a regular file";
+        case StorageError::FileTooLarge:         return "The replay file is too large";
+        case StorageError::OpenFailed:           return "The replay file could not be opened";
+        case StorageError::ReadFailed:           return "The replay file could not be read";
+        case StorageError::WriteFailed:          return "The replay file could not be written";
+        case StorageError::RenameFailed:         return "The replay file could not be finalized";
+        case StorageError::DeleteFailed:         return "The replay file could not be deleted";
+        case StorageError::InvalidReplay:        return "The replay data is invalid";
         }
         return "The replay operation failed";
     }
@@ -421,12 +354,10 @@ namespace toasty::replay::ttrl {
     std::string describe(StorageFailure const& failure) {
         StringBuffer<256> msg;
         msg.append("{}", errorMessage(failure.error));
-        if (failure.codec) {
+        if (failure.codec)
             msg.append(": {}", codec::errorMessage(failure.codec->error));
-        }
-        if (!failure.detail.empty()) {
+        if (!failure.detail.empty())
             msg.append(": {}", failure.detail);
-        }
         return msg.str();
     }
 } // namespace toasty::replay::ttrl
