@@ -65,25 +65,36 @@ class $modify(ToastyKeys, CCKeyboardDispatcher) {
 
 class $modify(ToastyPause, PauseLayer) {
     void customSetup() {
-        PauseLayer::customSetup();
+    PauseLayer::customSetup();
 
-        auto menu = this->getChildByID("left-button-menu");
-        if (!menu)
-            return;
+    // toasty menu button
+    CCNode* spr = CCSprite::create("MenuIcon.png"_spr);
+    if (!spr)
+        spr = ButtonSprite::create("TR", "goldFont.fnt", "GJ_button_04.png", .8f);
 
-        // toasty menu button
-        CCNode* spr = CCSprite::create("MenuIcon.png"_spr);
-        if (!spr)
-            spr = ButtonSprite::create("TR", "goldFont.fnt", "GJ_button_04.png", .8f);
+    spr->setScale(34.5f / std::max(spr->getContentWidth(), spr->getContentHeight()));
 
-        spr->setScale(34.5f / std::max(spr->getContentWidth(), spr->getContentHeight()));
+    auto btn =
+        CCMenuItemSpriteExtra::create(spr, this, menu_selector(ToastyPause::onToastyMenu));
+    btn->setID("menu-button"_spr);
 
-        auto btn =
-            CCMenuItemSpriteExtra::create(spr, this, menu_selector(ToastyPause::onToastyMenu));
-        btn->setID("menu-button"_spr);
+    CCNode* menu = this->getChildByID("left-button-menu");
+    if (!menu) menu = this->getChildByID("right-button-menu");
+    if (!menu) menu = this->getChildByID("bottom-menu");
+
+    if (menu) {
         menu->addChild(btn);
         menu->updateLayout();
+    } else {
+        // fallback: buat menu sendiri
+        auto fallback = CCMenu::create();
+        fallback->setID("toasty-menu"_spr);
+        fallback->setPosition({30.f, 90.f});
+        btn->setPosition({0.f, 0.f});
+        fallback->addChild(btn);
+        this->addChild(fallback);
     }
+}
 
     void onToastyMenu(CCObject* sender) {
         ToastyMenu::create()->show();
