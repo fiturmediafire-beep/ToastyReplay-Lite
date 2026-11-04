@@ -326,8 +326,8 @@ class $modify(ToastyReplayPlayLayer, PlayLayer) {
         return &m_fields->session;
     }
 
-bool init(GJGameLevel* level, bool useReplay) {
-    if (!PlayLayer::init(level, useReplay)) {
+bool init(GJGameLevel* level, bool dontCreateObjects) {
+    if (!PlayLayer::init(level, dontCreateObjects)) {
             return false;
         }
         auto fields = m_fields.self();
