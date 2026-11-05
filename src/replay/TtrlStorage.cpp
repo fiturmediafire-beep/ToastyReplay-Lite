@@ -10,6 +10,9 @@
 #include <filesystem>
 #include <system_error>
 #include <utility>
+#include <sys/stat.h>
+#include <cerrno>
+#include <cstring>
 
 using namespace geode::prelude;
 
@@ -125,23 +128,23 @@ namespace toasty::replay::ttrl {
     }
 
     static Result<void, StorageFailure> ensureDirectory(asp::fs::Path const& directory) {
-        std::error_code ec;
-        auto stdPath = toStd(directory);
-        auto status = std::filesystem::status(stdPath, ec);
-        if (!ec) {
-            if (std::filesystem::is_directory(status))
-                return Ok();
-            return failure(StorageError::DirectoryUnavailable);
-        }
-        if (ec != std::errc::no_such_file_or_directory) {
-            return failure(StorageError::DirectoryUnavailable, ec.message());
-        }
-        std::filesystem::create_directories(stdPath, ec);
-        if (ec) {
-            return failure(StorageError::DirectoryUnavailable, ec.message());
-        }
-        return Ok();
+    auto stdPath = toStd(directory);
+    struct stat st;
+    if (::stat(stdPath.c_str(), &st) == 0) {
+        if (S_ISDIR(st.st_mode))
+            return Ok();
+        return failure(StorageError::DirectoryUnavailable);
     }
+    if (errno != ENOENT) {
+        return failure(StorageError::DirectoryUnavailable, std::strerror(errno));
+    }
+    std::error_code ec;
+    std::filesystem::create_directories(stdPath, ec);
+    if (ec) {
+        return failure(StorageError::DirectoryUnavailable, ec.message());
+    }
+    return Ok();
+}
 
     static Result<asp::fs::Path, StorageFailure> availablePath(asp::fs::Path const& directory,
                                                                ZStringView name) {
