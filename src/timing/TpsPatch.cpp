@@ -141,8 +141,16 @@ namespace {
         appendRelativeJump(bytes, address, address + 0x43);
         bytes.insert(bytes.end(), 4, 0x90);
 #elif defined(GEODE_IS_ANDROID64)
-    static constexpr std::array<int16_t, 12> signature = {
-            0xab, 0x19, 0x60, 0x1e, 0x0a, 0x10, 0x62, 0x1e, 0x6a, 0x09, 0x6a, 0x1e};
+            static constexpr std::array<int16_t, 36> signature = {
+            0x0e, 0x19, 0x60, 0x1e,   // fdiv   d14, d8, d0
+            0x0d, 0x10, 0x62, 0x1e,   // fmov   d13, #4.0
+            0x00, 0x10, 0x2e, 0x1e,   // fmov   s0, #1.0
+            0xcd, 0x09, 0x6d, 0x1e,   // fmul   d13, d14, d13
+            0xac, 0x41, 0x62, 0x1e,   // fcvt   s12, d13
+            0x8a, 0x41, 0x26, 0x1e,   // frinta s10, s12
+            0x50, 0x21, 0x20, 0x1e,   // fcmpe  s10, s0
+            -1,   -1,   -1,   0x54,   // b.le   (offsetnya berubah-ubah)
+            0x40, 0x01, 0x38, 0x1e};  // fcvtzs w0, s10
         address = findPattern(region.first, region.second, {signature, 0});
         if (!address) {
             // dump kode update() untuk analisis, hasilnya ada di folder save mod
