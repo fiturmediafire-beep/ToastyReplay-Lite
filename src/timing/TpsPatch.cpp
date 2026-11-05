@@ -147,13 +147,13 @@ namespace {
         if (!address) {
             // dump kode update() untuk analisis, hasilnya ada di folder save mod
             std::string dump;
-            for (size_t i = 0; i < 0x800; i += 4) {
+            for (size_t i = 0x1040; i < 0x1200; i += 4) {
                 uint32_t word;
                 std::memcpy(&word, region.first + i, sizeof(word));
                 dump += fmt::format("{:04x}: {:08x}\n", i, word);
             }
             static_cast<void>(utils::file::writeString(
-                Mod::get()->getSaveDir() / "update_dump.txt", dump));
+                Mod::get()->getSaveDir() / "update_dump2.txt", dump));
             return Err("Android 64-bit 2.2081 tick signature was not found");
         }
         appendArm64Address(bytes, reinterpret_cast<uintptr_t>(s_expectedTarget), 9);
