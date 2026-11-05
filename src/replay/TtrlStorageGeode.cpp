@@ -1,14 +1,11 @@
 #include "TtrlStorage.hpp"
 
 #include <Geode/loader/Mod.hpp>
-#include <Geode/Geode.hpp>
 
 using namespace geode::prelude;
 
 namespace toasty::replay::ttrl {
-    asp::fs::Path defaultReplayDirectory() {
-        auto path = Mod::get()->getSaveDir() / "replays";
-        log::info("Replay directory: {}", path.string());
-        return path;
+    asp::fs::path defaultReplayDirectory() {
+        return Mod::get()->getSaveDir() / "replays";
     }
 } // namespace toasty::replay::ttrl
