@@ -4,6 +4,7 @@
 #include <asp/iter.hpp>
 #include <Geode/utils/string.hpp>
 #include <Geode/utils/StringBuffer.hpp>
+#include <fmt/format.h>
 
 #include <algorithm>
 #include <cctype>
@@ -123,46 +124,62 @@ namespace toasty::replay::ttrl {
         return buf.str();
     }
 
-    static std::filesystem::path toStd(asp::fs::path const& p) {
-    return p;
-}
+    // Kalau compile error di .string(), cek asp/fs/Path.hpp untuk nama method yang benar.
+    static std::filesystem::path toStd(asp::fs::Path const& p) {
+        return std::filesystem::path(std::string(p.string()));
+    }
 
-    static Result<void, StorageFailure> ensureDirectory(asp::fs::path const& directory) {
-    auto stdPath = toStd(directory);
-    struct stat st;
-    if (::stat(stdPath.c_str(), &st) == 0) {
-        if (S_ISDIR(st.st_mode))
-            return Ok();
-        return failure(StorageError::DirectoryUnavailable);
+    // ENOENT bisa datang dengan category berbeda di Android, jadi cek value-nya juga.
+    static bool isNotFound(std::error_code const& ec) {
+        return ec.value() == ENOENT || ec == std::errc::no_such_file_or_directory;
     }
-    if (errno != ENOENT) {
-        return failure(StorageError::DirectoryUnavailable, std::strerror(errno));
-    }
-    std::error_code ec;
-    std::filesystem::create_directories(stdPath, ec);
-    if (ec) {
-        return failure(StorageError::DirectoryUnavailable, ec.message());
-    }
-    return Ok();
-}
 
-    static Result<asp::fs::path, StorageFailure> availablePath(asp::fs::Path const& directory,
+    // true = ada, false = tidak ada, Err = error sungguhan
+    static Result<bool, StorageFailure> pathExists(std::filesystem::path const& p) {
+        struct stat st;
+        if (::stat(p.c_str(), &st) == 0)
+            return Ok(true);
+        if (errno == ENOENT)
+            return Ok(false);
+        return failure(StorageError::DirectoryUnavailable,
+                       fmt::format("{}: {}", p.string(), std::strerror(errno)));
+    }
+
+    static Result<void, StorageFailure> ensureDirectory(asp::fs::Path const& directory) {
+        auto stdPath = toStd(directory);
+        struct stat st;
+        if (::stat(stdPath.c_str(), &st) == 0) {
+            if (S_ISDIR(st.st_mode))
+                return Ok();
+            return failure(StorageError::DirectoryUnavailable,
+                           stdPath.string() + " is not a directory");
+        }
+        if (errno != ENOENT) {
+            return failure(StorageError::DirectoryUnavailable,
+                           fmt::format("{}: {}", stdPath.string(), std::strerror(errno)));
+        }
+        std::error_code ec;
+        std::filesystem::create_directories(stdPath, ec);
+        if (ec) {
+            return failure(StorageError::DirectoryUnavailable,
+                           fmt::format("{}: {}", stdPath.string(), ec.message()));
+        }
+        return Ok();
+    }
+
+    static Result<asp::fs::Path, StorageFailure> availablePath(asp::fs::Path const& directory,
                                                                ZStringView name) {
         for (size_t index = 0; index < MaximumNameAttempts; ++index) {
             auto path = directory / replayFileName(name, index);
-            std::error_code ec;
-            std::filesystem::status(toStd(path), ec);
-            if (ec == std::errc::no_such_file_or_directory) {
+            GEODE_UNWRAP_INTO(auto exists, pathExists(toStd(path)));
+            if (!exists) {
                 return Ok(path);
-            }
-            if (ec) {
-                return failure(StorageError::DirectoryUnavailable, ec.message());
             }
         }
         return failure(StorageError::TooManyFiles);
     }
 
-    static std::string pathFileName(asp::fs::path const& path) {
+    static std::string pathFileName(asp::fs::Path const& path) {
         return toStd(path).filename().string();
     }
 
@@ -175,34 +192,39 @@ namespace toasty::replay::ttrl {
         return replayLoadFileName(fileName) == std::string(view);
     }
 
-    Storage::Storage(asp::fs::path directory)
+    Storage::Storage(asp::fs::Path directory)
         : m_directory(std::move(directory)) {}
 
-    asp::fs::path const& Storage::directory() const {
+    asp::fs::Path const& Storage::directory() const {
         return m_directory;
     }
 
     SaveResult Storage::save(ZStringView name, Replay const& replay) const {
+        geode::log::info("save: dir={}", toStd(m_directory).string());
         GEODE_UNWRAP(ensureDirectory(m_directory));
+        geode::log::info("save: ensureDirectory ok");
         auto encoded = codec::encode(replay);
         if (encoded.isErr()) {
             return failure(StorageError::InvalidReplay, {}, encoded.unwrapErr());
         }
+        geode::log::info("save: encoded {} bytes", encoded.unwrap().size());
         GEODE_UNWRAP_INTO(auto target, availablePath(m_directory, name));
+        geode::log::info("save: target={}", toStd(target).string());
         auto writeRes = utils::file::writeBinarySafe(target, encoded.unwrap());
         if (writeRes.isErr()) {
+            geode::log::error("save: write failed: {}", writeRes.unwrapErr());
             return failure(StorageError::WriteFailed, writeRes.unwrapErr());
         }
         return Ok(pathFileName(target));
     }
 
-    SaveResult Storage::importFile(asp::fs::path const& source) const {
+    SaveResult Storage::importFile(asp::fs::Path const& source) const {
         GEODE_UNWRAP(ensureDirectory(m_directory));
         std::error_code ec;
         auto stdSource = toStd(source);
         auto status = std::filesystem::status(stdSource, ec);
         if (ec) {
-            if (ec == std::errc::no_such_file_or_directory)
+            if (isNotFound(ec))
                 return failure(StorageError::FileNotFound);
             return failure(StorageError::ReadFailed, ec.message());
         }
@@ -230,7 +252,7 @@ namespace toasty::replay::ttrl {
         std::error_code ec;
         auto status = std::filesystem::status(toStd(path), ec);
         if (ec) {
-            if (ec == std::errc::no_such_file_or_directory)
+            if (isNotFound(ec))
                 return failure(StorageError::FileNotFound);
             return failure(StorageError::ReadFailed, ec.message());
         }
@@ -256,7 +278,7 @@ namespace toasty::replay::ttrl {
         std::error_code ec;
         auto status = std::filesystem::status(toStd(path), ec);
         if (ec) {
-            if (ec == std::errc::no_such_file_or_directory)
+            if (isNotFound(ec))
                 return failure(StorageError::FileNotFound);
             return failure(StorageError::DeleteFailed, ec.message());
         }
@@ -277,7 +299,7 @@ namespace toasty::replay::ttrl {
         auto stdSource = toStd(source);
         auto sourceStatus = std::filesystem::status(stdSource, ec);
         if (ec) {
-            if (ec == std::errc::no_such_file_or_directory)
+            if (isNotFound(ec))
                 return failure(StorageError::FileNotFound);
             return failure(StorageError::RenameFailed, ec.message());
         }
@@ -287,11 +309,9 @@ namespace toasty::replay::ttrl {
         if (targetName == std::string(fileName.view()))
             return Ok(std::move(targetName));
         auto stdTarget = toStd(m_directory / targetName);
-        std::filesystem::status(stdTarget, ec);
-        if (!ec)
+        GEODE_UNWRAP_INTO(auto targetExists, pathExists(stdTarget));
+        if (targetExists)
             return failure(StorageError::NameTaken);
-        if (ec != std::errc::no_such_file_or_directory)
-            return failure(StorageError::RenameFailed, ec.message());
         std::filesystem::rename(stdSource, stdTarget, ec);
         if (ec)
             return failure(StorageError::RenameFailed, ec.message());
