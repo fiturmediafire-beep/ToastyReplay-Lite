@@ -10,6 +10,7 @@
 #include <cstring>
 #include <span>
 #include <vector>
+#include <Geode/utils/file.hpp>
 
 #if defined(GEODE_IS_ANDROID)
 #include <dlfcn.h>
@@ -140,11 +141,21 @@ namespace {
         appendRelativeJump(bytes, address, address + 0x43);
         bytes.insert(bytes.end(), 4, 0x90);
 #elif defined(GEODE_IS_ANDROID64)
-        static constexpr std::array<int16_t, 12> signature = {
+    static constexpr std::array<int16_t, 12> signature = {
             0xab, 0x19, 0x60, 0x1e, 0x0a, 0x10, 0x62, 0x1e, 0x6a, 0x09, 0x6a, 0x1e};
         address = findPattern(region.first, region.second, {signature, 0});
-        if (!address)
+        if (!address) {
+            // dump kode update() untuk analisis, hasilnya ada di folder save mod
+            std::string dump;
+            for (size_t i = 0; i < 0x800; i += 4) {
+                uint32_t word;
+                std::memcpy(&word, region.first + i, sizeof(word));
+                dump += fmt::format("{:04x}: {:08x}\n", i, word);
+            }
+            static_cast<void>(utils::file::writeString(
+                Mod::get()->getSaveDir() / "update_dump.txt", dump));
             return Err("Android 64-bit 2.2081 tick signature was not found");
+        }
         appendArm64Address(bytes, reinterpret_cast<uintptr_t>(s_expectedTarget), 9);
         append32(bytes, 0xb9400120);
         append32(bytes, arm64Branch(address + bytes.size(), address + 0x24));
