@@ -121,7 +121,7 @@ namespace toasty::replay::ttrl {
     }
 
     static std::filesystem::path toStd(asp::fs::Path const& p) {
-        return p.toStdPath().unwrapOrDefault();
+    return std::filesystem::path(p.string());
     }
 
     static Result<void, StorageFailure> ensureDirectory(asp::fs::Path const& directory) {
