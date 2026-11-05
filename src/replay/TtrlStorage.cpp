@@ -124,10 +124,9 @@ namespace toasty::replay::ttrl {
         return buf.str();
     }
 
-    // Kalau compile error di .string(), cek asp/fs/Path.hpp untuk nama method yang benar.
-    static std::filesystem::path toStd(asp::fs::Path const& p) {
-        return std::filesystem::path(std::string(p.string()));
-    }
+static std::filesystem::path toStd(asp::fs::Path const& p) {
+    return p.toStdPath().unwrapOrDefault();
+}
 
     // ENOENT bisa datang dengan category berbeda di Android, jadi cek value-nya juga.
     static bool isNotFound(std::error_code const& ec) {
