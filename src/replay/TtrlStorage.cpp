@@ -123,11 +123,11 @@ namespace toasty::replay::ttrl {
         return buf.str();
     }
 
-    static std::filesystem::path toStd(asp::fs::Path const& p) {
+    static std::filesystem::path toStd(asp::fs::path const& p) {
     return std::filesystem::path(p.string());
     }
 
-    static Result<void, StorageFailure> ensureDirectory(asp::fs::Path const& directory) {
+    static Result<void, StorageFailure> ensureDirectory(asp::fs::path const& directory) {
     auto stdPath = toStd(directory);
     struct stat st;
     if (::stat(stdPath.c_str(), &st) == 0) {
@@ -146,7 +146,7 @@ namespace toasty::replay::ttrl {
     return Ok();
 }
 
-    static Result<asp::fs::Path, StorageFailure> availablePath(asp::fs::Path const& directory,
+    static Result<asp::fs::path, StorageFailure> availablePath(asp::fs::Path const& directory,
                                                                ZStringView name) {
         for (size_t index = 0; index < MaximumNameAttempts; ++index) {
             auto path = directory / replayFileName(name, index);
@@ -162,7 +162,7 @@ namespace toasty::replay::ttrl {
         return failure(StorageError::TooManyFiles);
     }
 
-    static std::string pathFileName(asp::fs::Path const& path) {
+    static std::string pathFileName(asp::fs::path const& path) {
         return toStd(path).filename().string();
     }
 
@@ -175,10 +175,10 @@ namespace toasty::replay::ttrl {
         return replayLoadFileName(fileName) == std::string(view);
     }
 
-    Storage::Storage(asp::fs::Path directory)
+    Storage::Storage(asp::fs::path directory)
         : m_directory(std::move(directory)) {}
 
-    asp::fs::Path const& Storage::directory() const {
+    asp::fs::path const& Storage::directory() const {
         return m_directory;
     }
 
@@ -196,7 +196,7 @@ namespace toasty::replay::ttrl {
         return Ok(pathFileName(target));
     }
 
-    SaveResult Storage::importFile(asp::fs::Path const& source) const {
+    SaveResult Storage::importFile(asp::fs::path const& source) const {
         GEODE_UNWRAP(ensureDirectory(m_directory));
         std::error_code ec;
         auto stdSource = toStd(source);
