@@ -8,7 +8,7 @@ using namespace geode::prelude;
 namespace toasty::replay::ttrl {
     asp::fs::Path defaultReplayDirectory() {
         auto path = Mod::get()->getSaveDir() / "replays";
-        log::info("Replay directory: {}", path.toString().unwrapOrDefault());
+        log::info("Replay directory: {}", path.string());
         return path;
     }
 } // namespace toasty::replay::ttrl
