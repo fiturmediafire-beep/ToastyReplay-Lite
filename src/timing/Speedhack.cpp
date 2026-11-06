@@ -13,7 +13,6 @@ using namespace geode::prelude;
 namespace {
     bool s_enabled = false;
     double s_rate = toasty::speedhack::Default;
-    bool s_gameLoaded = false;
 
     double boundedRate(double value) {
         if (!std::isfinite(value)) {
@@ -23,9 +22,6 @@ namespace {
     }
 
     void applySpeed() {
-        if (!s_gameLoaded) {
-            return;
-        }
         if (auto director = CCDirector::sharedDirector()) {
             if (auto scheduler = director->getScheduler()) {
                 scheduler->setTimeScale(
@@ -93,9 +89,4 @@ $on_mod(Loaded) {
     s_rate = boundedRate(
         Mod::get()->getSavedValue<double>("speedhack-rate", toasty::speedhack::Default));
     s_enabled = Mod::get()->getSavedValue<bool>("speedhack", false);
-}
-
-$on_game(Loaded) {
-    s_gameLoaded = true;
-    applySpeed();
 }
