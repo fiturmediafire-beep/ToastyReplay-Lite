@@ -20,7 +20,7 @@ namespace {
 
     std::string getOutputPath() {
         // Konversi geode::Path ke std::filesystem::path terlebih dahulu
-        std::filesystem::path base = static_cast<std::filesystem::path>(geode::dirs::getSaveDir()) / "toastyreplay" / "renders";
+        std::filesystem::path base = std::filesystem::path(geode::dirs::getSaveDir().string()) / "toastyreplay" / "renders";
         std::filesystem::create_directories(base);
 
         // Nama file pakai timestamp
