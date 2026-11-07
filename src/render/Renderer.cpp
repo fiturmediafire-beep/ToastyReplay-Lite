@@ -19,9 +19,11 @@ namespace {
     int s_fps = 60;
 
     std::string getOutputPath() {
-        auto base = geode::dirs::getSaveDir() / "toastyreplay" / "renders";
+        // Konversi geode::Path ke std::filesystem::path terlebih dahulu
+        std::filesystem::path base = static_cast<std::filesystem::path>(geode::dirs::getSaveDir()) / "toastyreplay" / "renders";
         std::filesystem::create_directories(base);
 
+        // Nama file pakai timestamp
         std::time_t t = std::time(nullptr);
         char buf[32];
         std::strftime(buf, sizeof(buf), "render_%Y%m%d_%H%M%S.mp4", std::localtime(&t));
@@ -44,12 +46,16 @@ namespace toasty::renderer {
         settings.m_width       = s_width;
         settings.m_height      = s_height;
         settings.m_fps         = s_fps;
-        settings.m_bitrate     = 8000000;
+        settings.m_bitrate     = 8000000; // 8 Mbps
         settings.m_codec       = "libx264";
         settings.m_pixelFormat = ffmpeg::PixelFormat::RGB0;
         settings.m_outputFile  = getOutputPath();
 
-        s_recorder.init(settings);
+        auto initResult = s_recorder.init(settings);
+        if (initResult.isErr()) {
+            log::error("[ToastyRender] Failed to init recorder: {}", initResult.unwrapErr());
+            return;
+        }
         s_recording = true;
 
         log::info("[ToastyRender] Recording started → {}", settings.m_outputFile);
@@ -71,6 +77,7 @@ namespace toasty::renderer {
         auto director = CCDirector::sharedDirector();
         if (!director) return;
 
+        // Buat RenderTexture seukuran layar
         auto rt = CCRenderTexture::create(s_width, s_height, kCCTexture2DPixelFormat_RGBA8888);
         if (!rt) return;
 
@@ -78,6 +85,7 @@ namespace toasty::renderer {
         director->getRunningScene()->visit();
         rt->end();
 
+        // Ambil pixel data dari texture
         auto img = rt->newCCImage(false);
         if (!img) return;
 
@@ -89,7 +97,10 @@ namespace toasty::renderer {
         }
 
         std::vector<uint8_t> frame(data, data + len);
-        s_recorder.writeFrame(frame);
+        auto writeResult = s_recorder.writeFrame(frame);
+        if (writeResult.isErr()) {
+            log::warn("[ToastyRender] writeFrame failed: {}", writeResult.unwrapErr());
+        }
 
         img->release();
     }
@@ -99,6 +110,7 @@ namespace toasty::renderer {
     }
 }
 
+// Hook PlayLayer untuk capture tiap frame saat replay play
 class $modify(RendererPlayLayer, PlayLayer) {
     void postUpdate(float dt) override {
         PlayLayer::postUpdate(dt);
