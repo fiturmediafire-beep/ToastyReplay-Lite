@@ -2,7 +2,7 @@
 
 #include <Geode/Geode.hpp>
 #include <Geode/binding/FMODAudioEngine.hpp>
-#include <Geode/loader/GameEvent.hpp>
+#include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 
 #include <algorithm>
@@ -20,16 +20,6 @@ namespace {
         }
         return std::clamp(value, toasty::speedhack::Minimum, toasty::speedhack::Maximum);
     }
-
-    void applySpeed() {
-        if (auto director = CCDirector::sharedDirector()) {
-            if (auto scheduler = director->getScheduler()) {
-                scheduler->setTimeScale(
-                    static_cast<float>(s_enabled ? s_rate : toasty::speedhack::Default));
-            }
-        }
-        toasty::speedhack::syncAudio();
-    }
 }
 
 namespace toasty::speedhack {
@@ -46,7 +36,7 @@ namespace toasty::speedhack {
         if (Mod::get()->getSavedValue<bool>("speedhack", false) != value) {
             Mod::get()->setSavedValue<bool>("speedhack", value);
         }
-        applySpeed();
+        syncAudio();
     }
 
     void syncAudio() {
@@ -64,24 +54,33 @@ namespace toasty::speedhack {
         if (Mod::get()->getSavedValue<double>("speedhack-rate", Default) != s_rate) {
             Mod::get()->setSavedValue<double>("speedhack-rate", s_rate);
         }
-        applySpeed();
+        syncAudio();
     }
 }
+
+class $modify(SpeedhackGJBGL, GJBaseGameLayer) {
+    void update(float dt) override {
+        if (s_enabled && std::isfinite(dt) && dt > 0.f) {
+            dt *= static_cast<float>(s_rate);
+        }
+        GJBaseGameLayer::update(dt);
+    }
+};
 
 class $modify(SpeedhackPlayLayer, PlayLayer) {
     void resetLevel() {
         PlayLayer::resetLevel();
-        applySpeed();
+        toasty::speedhack::syncAudio();
     }
 
     void loadFromCheckpoint(CheckpointObject* checkpoint) {
         PlayLayer::loadFromCheckpoint(checkpoint);
-        applySpeed();
+        toasty::speedhack::syncAudio();
     }
 
     void destroyPlayer(PlayerObject* player, GameObject* object) {
         PlayLayer::destroyPlayer(player, object);
-        applySpeed();
+        toasty::speedhack::syncAudio();
     }
 };
 
