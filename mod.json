@@ -14,7 +14,8 @@
 		"Anticroom",
 		"Human0443",
 		"Lyn",
-		"DominoKiddoo"
+		"DominoKiddoo",
+"Died100"
 	],
 	"description": "A lightweight version of ToastyReplay with a native Geometry Dash interface.",
 	"early-load": true,
@@ -29,10 +30,14 @@
 	},
 	"dependencies": {
 		"geode.node-ids": ">=v1.23.3",
-		"fryy_55.amber": {
-			"version": ">=2.0.0",
-			"required": true
-		}
+"fryy_55.amber": {
+    "version": ">=2.0.0",
+    "required": true
+},
+"eclipse.ffmpeg-api": {
+    "version": ">=2.0.0",
+    "required": true
+}
     },
 
 	"incompatibilities": {
