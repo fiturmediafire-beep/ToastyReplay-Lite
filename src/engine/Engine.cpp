@@ -8,6 +8,7 @@
 #include "../ui/Notifications.hpp"
 #include "../floatingbutton/button.hpp"
 #include "../ui/Watermark.hpp"
+#include "../render/Renderer.hpp"
 
 #include <Geode/Geode.hpp>
 #include <Geode/binding/EndLevelLayer.hpp>
@@ -396,7 +397,8 @@ namespace toasty::engine {
         toasty::ui::refreshFloatingButton();
         log::info("Loaded replay {} with {} inputs", selectedReplay(), session->playback->inputs.size());
         toasty::notifications::show("Replay started", NotificationIcon::Info);
-        return true;
+toasty::renderer::startRecording();
+return true;
     }
 
     void stopPlayback() {
@@ -411,7 +413,8 @@ namespace toasty::engine {
         if (playing()) {
             stopPlayback();
             toasty::notifications::show("Replay stopped", NotificationIcon::Info);
-            return;
+toasty::renderer::stopRecording();
+return;
         }
         auto selected = selectedReplay();
         if (!selected.empty()) {
