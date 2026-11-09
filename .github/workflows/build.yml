@@ -16,8 +16,19 @@ jobs:
           submodules: true
           fetch-depth: 0
 
-      - name: Install Ninja
-        run: sudo apt-get install -y ninja-build
+      - name: Pre-fetch Ninja (workaround for build-geode-mod action bug)
+        run: |
+          # Download Ninja with explicit version + explicit User-Agent
+          curl -fL --user-agent "Mozilla/5.0" \
+            "https://github.com/ninja-build/ninja/releases/download/v1.12.1/ninja-linux.zip" \
+            -o /tmp/ninja-linux.zip
+          # Extract to the exact path the action uses
+          mkdir -p "$GITHUB_WORKSPACE/ninja"
+          unzip /tmp/ninja-linux.zip -d "$GITHUB_WORKSPACE/ninja"
+          chmod +x "$GITHUB_WORKSPACE/ninja/ninja"
+          echo "$GITHUB_WORKSPACE/ninja" >> $GITHUB_PATH
+          # Also create a fake ninja.zip so action's 7z doesn't fail
+          cp /tmp/ninja-linux.zip "$GITHUB_WORKSPACE/ninja.zip"
 
       - name: Build the mod
         uses: geode-sdk/build-geode-mod@main
