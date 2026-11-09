@@ -16,6 +16,9 @@ jobs:
           submodules: true
           fetch-depth: 0
 
+      - name: Install Ninja
+        run: sudo apt-get install -y ninja-build
+
       - name: Build the mod
         uses: geode-sdk/build-geode-mod@main
         with:
