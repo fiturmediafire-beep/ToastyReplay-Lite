@@ -14,13 +14,10 @@ namespace {
         auto children = layer->m_objectLayer->getChildren();
         if (!children) return;
 
-        CCObject* obj = nullptr;
-        CCARRAY_FOREACH(children, obj) {
-            auto go = typeinfo_cast<GameObject*>(obj);
-            if (!go) continue;
-
-            if (go->m_isDontTransform) {
-                go->setVisible(!hide);
+        for (auto* obj : CCArrayExt<GameObject*>(children)) {
+            if (!obj) continue;
+            if (obj->m_isNoTouch && !obj->m_isTrigger) {
+                obj->setVisible(!hide);
             }
         }
     }
@@ -49,8 +46,8 @@ namespace toasty::layout {
 }
 
 class $modify(LayoutPlayLayer, PlayLayer) {
-    bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
-        if (!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
+    bool init(GJGameLevel* level, bool dontCreateObjects) {
+        if (!PlayLayer::init(level, dontCreateObjects)) return false;
         if (toasty::layout::enabled()) {
             toasty::layout::apply(true);
         }
@@ -59,7 +56,7 @@ class $modify(LayoutPlayLayer, PlayLayer) {
 
     void addObject(GameObject* obj) {
         PlayLayer::addObject(obj);
-        if (toasty::layout::enabled() && obj && obj->m_isDontTransform) {
+        if (toasty::layout::enabled() && obj && obj->m_isNoTouch && !obj->m_isTrigger) {
             obj->setVisible(false);
         }
     }
