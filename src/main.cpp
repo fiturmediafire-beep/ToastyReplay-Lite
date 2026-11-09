@@ -6,8 +6,13 @@
 #endif
 #include "ToastyMenu.hpp"
 #include "ui/Notifications.hpp"
+#include "hacks/LayoutMode.hpp"
 
 using namespace geode::prelude;
+
+$on_mod(Loaded) {
+    toasty::layout::loadSaved();
+}
 
 $on_mod(Loaded) {
     if (Mod::get()->setSavedValue<bool>("migrated-open-key", true))
