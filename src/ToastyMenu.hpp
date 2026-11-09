@@ -83,6 +83,7 @@ class ToastyMenu : public geode::Popup {
     cocos2d::CCNode* makeTpsRow();
     cocos2d::CCNode* makeFrameStepperRow();
     cocos2d::CCNode* makeNoclipRow();
+    cocos2d::CCNode* makeLayoutModeRow();
     cocos2d::CCNode* makeSectionRow(geode::ZStringView title);
     cocos2d::CCNode* makeMacroRow(std::string const& fileName, int index);
     cocos2d::CCNode* makeKeybindRow(geode::ZStringView title, geode::ZStringView saveId, cocos2d::enumKeyCodes def);
@@ -109,6 +110,8 @@ class ToastyMenu : public geode::Popup {
     void onFrameStepperToggle(cocos2d::CCObject* sender);
     void onFrameStepperOptions(cocos2d::CCObject* sender);
     void onNoclipOptions(cocos2d::CCObject* sender);
+    void onLayoutModeToggle(cocos2d::CCObject* sender);
+    void onLayoutModeInfo(cocos2d::CCObject* sender);
     void onSeedInfo(cocos2d::CCObject* sender);
     void onReplayMacro(cocos2d::CCObject* sender);
     void onRenameMacro(cocos2d::CCObject* sender);
