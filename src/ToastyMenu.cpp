@@ -16,6 +16,7 @@
 #include "ui/Notifications.hpp"
 #include "ui/StepperButtons.hpp"
 #include "ui/Watermark.hpp"
+#include "hacks/LayoutMode.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -364,6 +365,8 @@ bool ToastyMenu::init() {
             this->makeToggleRow("auto-safe-mode",
                                 "Auto Safe Mode",
                                 Mod::get()->getSavedValue<bool>("auto-safe-mode", false)));
+
+        scroll->m_contentLayer->addChild(this->makeLayoutModeRow());
 
 
         scroll->m_contentLayer->updateLayout();
@@ -1008,6 +1011,28 @@ CCNode* ToastyMenu::makeNoclipRow() {
     return row.node;
 }
 
+CCNode* ToastyMenu::makeLayoutModeRow() {
+    auto row = this->makeRow("Layout Mode", ROW_H, 160.f);
+    row.node->setID("layout-mode");
+
+    auto toggle = CCMenuItemToggler::createWithStandardSprites(
+        this, menu_selector(ToastyMenu::onLayoutModeToggle), .6f);
+    auto next = placeCenter(toggle, CONTROL_CENTER, ROW_H / 2.f);
+    toggle->toggle(toasty::layout::enabled());
+    toggle->setID("layout-mode-toggle");
+    row.menu->addChild(toggle);
+
+    if (auto infoSpr = CCSprite::createWithSpriteFrameName("GJ_infoIcon_001.png")) {
+        infoSpr->setScale(.45f);
+        auto info = CCMenuItemSpriteExtra::create(
+            infoSpr, this, menu_selector(ToastyMenu::onLayoutModeInfo));
+        placeRight(info, next, ROW_H / 2.f);
+        row.menu->addChild(info);
+    }
+
+    return row.node;
+}
+
 CCNode* ToastyMenu::makeFrameStepperRow() {
     auto row = this->makeRow("Frame Stepper", ROW_H, 140.f);
     row.node->setID("frame-stepper");
@@ -1615,6 +1640,20 @@ void ToastyMenu::onNoclipOptions(CCObject*) {
             "Noclip", {{"noclip-p1", "Player 1", true}, {"noclip-p2", "Player 2", true}})) {
         popup->show();
     }
+}
+
+void ToastyMenu::onLayoutModeToggle(CCObject* sender) {
+    auto toggle = static_cast<CCMenuItemToggler*>(sender);
+    toasty::layout::setEnabled(!toggle->isToggled());
+}
+
+void ToastyMenu::onLayoutModeInfo(CCObject*) {
+    FLAlertLayer::create(
+        "Layout Mode",
+        "Hides all decorative objects and shows only the level structure. "
+        "Useful on low-end devices where decorations cause lag during replay playback.",
+        "OK")
+        ->show();
 }
 
 void ToastyMenu::onTpsInfo(CCObject* sender) {
