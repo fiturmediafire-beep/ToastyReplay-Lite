@@ -28,17 +28,13 @@
 	"links": {
 		"source": "https://github.com/ToastexGD/ToastyReplay-Lite"
 	},
-	"dependencies": {
-		"geode.node-ids": ">=v1.23.3",
-"fryy_55.amber": {
-    "version": ">=2.0.0",
-    "required": true
+"dependencies": {
+    "geode.node-ids": ">=v1.23.3",
+    "fryy_55.amber": {
+        "version": ">=2.0.0",
+        "required": true
+    }
 },
-"eclipse.ffmpeg-api": {
-    "version": ">=2.0.0",
-    "required": true
-}
-    },
 
 	"incompatibilities": {
 		"eclipse.eclipse-menu": {
