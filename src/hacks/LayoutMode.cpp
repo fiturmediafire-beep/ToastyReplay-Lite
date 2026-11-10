@@ -52,10 +52,11 @@ class $modify(LayoutPlayLayer, PlayLayer) {
     }
 
     void addObject(GameObject* obj) {
-        if (toasty::layout::enabled() && obj && obj->m_isHide) {
-            obj->m_isHide = false;
-        }
-        PlayLayer::addObject(obj);
+    PlayLayer::addObject(obj);  // panggil dulu original
+    if (toasty::layout::enabled() && obj && obj->m_isHide) {
+        obj->m_isHide = false;
+        obj->setVisible(true);  // force visible setelah addObject selesai
+    }
     }
 };
 
