@@ -27,12 +27,15 @@ namespace toasty::layout {
             if (!layer->m_objectLayer) return;
             for (auto* obj : CCArrayExt<GameObject*>(layer->m_objectLayer->getChildren())) {
                 if (!obj) continue;
-                if (obj->m_objectType == GameObjectType::Decoration
+                bool isDecoration = obj->m_objectType == GameObjectType::Decoration
                     && obj->m_objectID != 44
                     && obj->m_objectID != 38
                     && obj->m_objectID != 749
-                    && obj->m_objectID != 747) {
+                    && obj->m_objectID != 747;
+                if (isDecoration) {
                     obj->setVisible(!on);
+                } else if (obj->m_isHide) {
+                    obj->setVisible(on);
                 }
             }
         }
@@ -60,6 +63,9 @@ class $modify(LayoutGameObject, GameObject) {
             && m_objectID != 749
             && m_objectID != 747) {
             return GameObject::setVisible(false);
+        }
+        if (m_isHide) {
+            return GameObject::setVisible(true);
         }
         return GameObject::setVisible(v);
     }
