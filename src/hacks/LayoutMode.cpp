@@ -2,7 +2,7 @@
 
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
-#include <Geode/modify/GameObject.hpp>
+#include <Geode/modify/CCNode.hpp>
 
 using namespace geode::prelude;
 
@@ -33,9 +33,9 @@ namespace toasty::layout {
                     && obj->m_objectID != 749
                     && obj->m_objectID != 747;
                 if (isDecoration) {
-                    obj->setVisible(!on);
+                    obj->CCNode::setVisible(!on);
                 } else if (obj->m_isHide) {
-                    obj->setVisible(on);
+                    obj->CCNode::setVisible(on);
                 }
             }
         }
@@ -52,29 +52,30 @@ class $modify(LayoutPlayLayer, PlayLayer) {
     }
 
     void addObject(GameObject* obj) {
-    PlayLayer::addObject(obj);  // panggil dulu original
-    if (toasty::layout::enabled() && obj && obj->m_isHide) {
-        obj->m_isHide = false;
-        obj->setVisible(true);  // force visible setelah addObject selesai
-    }
+        PlayLayer::addObject(obj);
+        if (toasty::layout::enabled() && obj && obj->m_isHide) {
+            obj->m_isHide = false;
+            obj->CCNode::setVisible(true);
+            obj->setOpacity(255);
+        }
     }
 };
 
-class $modify(LayoutGameObject, GameObject) {
+class $modify(LayoutCCNode, CCNode) {
     void setVisible(bool v) {
         if (!toasty::layout::enabled() || PlayLayer::get() == nullptr) {
-            return GameObject::setVisible(v);
+            return CCNode::setVisible(v);
         }
-        if (m_objectType == GameObjectType::Decoration
-            && m_objectID != 44
-            && m_objectID != 38
-            && m_objectID != 749
-            && m_objectID != 747) {
-            return GameObject::setVisible(false);
-        }
-        if (m_isHide) {
-            return GameObject::setVisible(true);
-        }
-        return GameObject::setVisible(v);
+        auto* obj = typeinfo_cast<GameObject*>(this);
+        if (!obj) return CCNode::setVisible(v);
+
+        bool isDecoration = obj->m_objectType == GameObjectType::Decoration
+            && obj->m_objectID != 44
+            && obj->m_objectID != 38
+            && obj->m_objectID != 749
+            && obj->m_objectID != 747;
+        if (isDecoration) return CCNode::setVisible(false);
+        if (obj->m_isHide && !v) return CCNode::setVisible(true);
+        return CCNode::setVisible(v);
     }
 };
