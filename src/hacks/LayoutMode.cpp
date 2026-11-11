@@ -22,20 +22,25 @@ namespace toasty::layout {
         Mod::get()->setSavedValue<bool>("layout-mode", on);
     }
 
+    static bool isDecoration(GameObject* obj) {
+        return obj->m_objectType == GameObjectType::Decoration
+            && obj->m_objectID != 44
+            && obj->m_objectID != 38
+            && obj->m_objectID != 749
+            && obj->m_objectID != 747;
+    }
+
     void apply(bool on) {
         if (auto layer = PlayLayer::get()) {
             if (!layer->m_objectLayer) return;
             for (auto* obj : CCArrayExt<GameObject*>(layer->m_objectLayer->getChildren())) {
                 if (!obj) continue;
-                bool isDecoration = obj->m_objectType == GameObjectType::Decoration
-                    && obj->m_objectID != 44
-                    && obj->m_objectID != 38
-                    && obj->m_objectID != 749
-                    && obj->m_objectID != 747;
-                if (isDecoration) {
+                if (isDecoration(obj)) {
                     obj->CCNode::setVisible(!on);
-                } else if (obj->m_isHide) {
-                    obj->CCNode::setVisible(on);
+                } else if (on) {
+                    obj->m_isHide = false;
+                    obj->CCNode::setVisible(true);
+                    obj->setOpacity(255);
                 }
             }
         }
@@ -53,10 +58,14 @@ class $modify(LayoutPlayLayer, PlayLayer) {
 
     void addObject(GameObject* obj) {
         PlayLayer::addObject(obj);
-        if (toasty::layout::enabled() && obj && obj->m_isHide) {
-            obj->m_isHide = false;
-            obj->CCNode::setVisible(true);
-            obj->setOpacity(255);
+        if (toasty::layout::enabled() && obj) {
+            if (toasty::layout::isDecoration(obj)) {
+                obj->CCNode::setVisible(false);
+            } else {
+                obj->m_isHide = false;
+                obj->CCNode::setVisible(true);
+                obj->setOpacity(255);
+            }
         }
     }
 };
@@ -69,13 +78,10 @@ class $modify(LayoutCCNode, CCNode) {
         auto* obj = typeinfo_cast<GameObject*>(this);
         if (!obj) return CCNode::setVisible(v);
 
-        bool isDecoration = obj->m_objectType == GameObjectType::Decoration
-            && obj->m_objectID != 44
-            && obj->m_objectID != 38
-            && obj->m_objectID != 749
-            && obj->m_objectID != 747;
-        if (isDecoration) return CCNode::setVisible(false);
-        if (obj->m_isHide && !v) return CCNode::setVisible(true);
-        return CCNode::setVisible(v);
+        if (toasty::layout::isDecoration(obj)) {
+            return CCNode::setVisible(false);
+        }
+        // Non-decoration: paksa visible saat layout on
+        return CCNode::setVisible(true);
     }
 };
