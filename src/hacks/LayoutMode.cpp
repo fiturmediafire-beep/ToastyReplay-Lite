@@ -21,9 +21,9 @@ namespace toasty::layout {
 }
 
 class $modify(LayoutGameObject, GameObject) {
-    void addGlow(cocos2d::CCPoint const& p, int color) {
+    void addGlow(std::string frame) {
         if (!toasty::layout::enabled()) {
-            GameObject::addGlow(p, color);
+            GameObject::addGlow(frame);
             return;
         }
         bool isDecoration = (m_objectType == GameObjectType::Decoration
@@ -40,7 +40,7 @@ class $modify(LayoutGameObject, GameObject) {
         m_detailUsesHSV = false;
         m_baseUsesHSV = false;
         m_isHide = false;
-        GameObject::addGlow(p, color);
+        GameObject::addGlow(frame);
     }
 };
 
