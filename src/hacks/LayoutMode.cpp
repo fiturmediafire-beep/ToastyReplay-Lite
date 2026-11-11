@@ -3,11 +3,20 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/CCNode.hpp>
+#include <Geode/modify/GameObject.hpp>
 
 using namespace geode::prelude;
 
 namespace {
     bool s_enabled = false;
+
+    bool isDecoration(GameObject* obj) {
+        return obj->m_objectType == GameObjectType::Decoration
+            && obj->m_objectID != 44
+            && obj->m_objectID != 38
+            && obj->m_objectID != 749
+            && obj->m_objectID != 747;
+    }
 }
 
 namespace toasty::layout {
@@ -20,14 +29,6 @@ namespace toasty::layout {
     void setEnabled(bool on) {
         s_enabled = on;
         Mod::get()->setSavedValue<bool>("layout-mode", on);
-    }
-
-    static bool isDecoration(GameObject* obj) {
-        return obj->m_objectType == GameObjectType::Decoration
-            && obj->m_objectID != 44
-            && obj->m_objectID != 38
-            && obj->m_objectID != 749
-            && obj->m_objectID != 747;
     }
 
     void apply(bool on) {
@@ -59,13 +60,24 @@ class $modify(LayoutPlayLayer, PlayLayer) {
     void addObject(GameObject* obj) {
         PlayLayer::addObject(obj);
         if (toasty::layout::enabled() && obj) {
-            if (toasty::layout::isDecoration(obj)) {
+            if (isDecoration(obj)) {
                 obj->CCNode::setVisible(false);
             } else {
                 obj->m_isHide = false;
                 obj->CCNode::setVisible(true);
                 obj->setOpacity(255);
             }
+        }
+    }
+};
+
+class $modify(LayoutGameObject, GameObject) {
+    void activateObject() {
+        GameObject::activateObject();
+        if (toasty::layout::enabled() && m_isHide && PlayLayer::get()) {
+            m_isHide = false;
+            CCNode::setVisible(true);
+            setOpacity(255);
         }
     }
 };
@@ -78,10 +90,19 @@ class $modify(LayoutCCNode, CCNode) {
         auto* obj = typeinfo_cast<GameObject*>(this);
         if (!obj) return CCNode::setVisible(v);
 
-        if (toasty::layout::isDecoration(obj)) {
-            return CCNode::setVisible(false);
-        }
-        // Non-decoration: paksa visible saat layout on
+        if (isDecoration(obj)) return CCNode::setVisible(false);
         return CCNode::setVisible(true);
+    }
+
+    void setOpacity(unsigned char opacity) {
+        if (!toasty::layout::enabled() || PlayLayer::get() == nullptr) {
+            return CCNode::setOpacity(opacity);
+        }
+        auto* obj = typeinfo_cast<GameObject*>(this);
+        if (!obj) return CCNode::setOpacity(opacity);
+
+        if (isDecoration(obj)) return CCNode::setOpacity(opacity);
+        if (opacity == 0) return CCNode::setOpacity(255);
+        return CCNode::setOpacity(opacity);
     }
 };
