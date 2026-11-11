@@ -2,7 +2,6 @@
 
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
-#include <Geode/modify/CCNode.hpp>
 #include <Geode/modify/GameObject.hpp>
 
 using namespace geode::prelude;
@@ -10,14 +9,12 @@ using namespace geode::prelude;
 namespace {
     bool s_enabled = false;
 
-    bool isDecoration(GameObject* obj) {
-        return (obj->m_objectType == GameObjectType::Decoration
-            && obj->m_objectID != 44
-            && obj->m_objectID != 38
-            && obj->m_objectID != 749
-            && obj->m_objectID != 747)
-            || obj->m_isNoTouch;
-    }
+    static std::unordered_set<int> s_objectFilter = {
+        16, 17, 221, 743, 744, 899, 900, 915, 1006, 32, 33, 29, 30,
+        104, 105, 717, 718, 1007, 1520, 2903, 3029, 3030, 3031, 2999,
+        3606, 3612, 3009, 3010, 3014, 3015, 3021, 3020, 1818, 1819,
+        1612, 1613, 3608
+    };
 }
 
 namespace toasty::layout {
@@ -31,42 +28,32 @@ namespace toasty::layout {
         s_enabled = on;
         Mod::get()->setSavedValue<bool>("layout-mode", on);
     }
-
-    void apply(bool on) {
-        if (auto layer = PlayLayer::get()) {
-            if (!layer->m_objectLayer) return;
-            for (auto* obj : CCArrayExt<GameObject*>(layer->m_objectLayer->getChildren())) {
-                if (!obj) continue;
-                if (isDecoration(obj)) {
-                    obj->CCNode::setVisible(!on);
-                } else if (on) {
-                    obj->m_isHide = false;
-                    obj->CCNode::setVisible(true);
-                    obj->setOpacity(255);
-                }
-            }
-        }
-    }
 }
 
 class $modify(LayoutPlayLayer, PlayLayer) {
     bool init(GJGameLevel* level, bool dontCreateObjects) {
         if (!PlayLayer::init(level, dontCreateObjects)) return false;
-        if (toasty::layout::enabled()) {
-            toasty::layout::apply(true);
-        }
         return true;
     }
 
     void addObject(GameObject* obj) {
-        if (toasty::layout::enabled() && obj) {
-            if (isDecoration(obj)) {
-                obj->m_isHide = true;
-                return; // skip adding decoration entirely
-            }
-            obj->m_isHide = false;
-            obj->setOpacity(255);
+        if (!toasty::layout::enabled()) {
+            PlayLayer::addObject(obj);
+            return;
         }
+
+        if (s_objectFilter.contains(obj->m_objectID)) {
+            obj->m_isHide = true;
+            return;
+        }
+
+        obj->m_hasNoGlow = true;
+        obj->m_activeMainColorID = -1;
+        obj->m_activeDetailColorID = -1;
+        obj->m_detailUsesHSV = false;
+        obj->m_baseUsesHSV = false;
+        obj->m_isHide = false;
+        obj->setOpacity(255);
         PlayLayer::addObject(obj);
     }
 };
@@ -76,23 +63,15 @@ class $modify(LayoutGameObject, GameObject) {
         GameObject::addGlow(std::move(p0));
         if (!toasty::layout::enabled() || !PlayLayer::get()) return;
 
-        if (isDecoration(this)) {
+        if ((m_objectType == GameObjectType::Decoration
+            && m_objectID != 44
+            && m_objectID != 38
+            && m_objectID != 749
+            && m_objectID != 747)
+            || m_isNoTouch) {
             m_isHide = true;
         } else {
             m_isHide = false;
         }
-    }
-};
-
-class $modify(LayoutCCNode, CCNode) {
-    void setVisible(bool v) {
-        if (!toasty::layout::enabled() || PlayLayer::get() == nullptr) {
-            return CCNode::setVisible(v);
-        }
-        auto* obj = typeinfo_cast<GameObject*>(this);
-        if (!obj) return CCNode::setVisible(v);
-
-        if (isDecoration(obj)) return CCNode::setVisible(false);
-        return CCNode::setVisible(true);
     }
 };
