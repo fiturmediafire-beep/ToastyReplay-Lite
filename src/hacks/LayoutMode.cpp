@@ -1,6 +1,7 @@
 #include "LayoutMode.hpp"
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
+#include <Geode/modify/GameObject.hpp>
 using namespace geode::prelude;
 
 namespace {
@@ -19,6 +20,23 @@ namespace toasty::layout {
     void setEnabled(bool on) { s_enabled = on; Mod::get()->setSavedValue<bool>("layout-mode", on); }
 }
 
+class $modify(LayoutGameObject, GameObject) {
+    void addGlow(std::string frame) {
+        if (!toasty::layout::enabled()) {
+            GameObject::addGlow(frame);
+            return;
+        }
+        // non-decoration yang punya glow: clear glow dan warna
+        m_hasNoGlow = true;
+        m_activeMainColorID = -1;
+        m_activeDetailColorID = -1;
+        m_detailUsesHSV = false;
+        m_baseUsesHSV = false;
+        m_isHide = false;
+        GameObject::addGlow(frame);
+    }
+};
+
 class $modify(LayoutPlayLayer, PlayLayer) {
     void addObject(GameObject* obj) {
         PlayLayer::addObject(obj);
@@ -31,14 +49,8 @@ class $modify(LayoutPlayLayer, PlayLayer) {
 
         if (isDecoration || isFilter || obj->m_isNoTouch) {
             obj->setVisible(false);
-            return;
+        } else {
+            obj->m_isHide = false;
         }
-
-        obj->m_hasNoGlow = true;
-        obj->m_activeMainColorID = -1;
-        obj->m_activeDetailColorID = -1;
-        obj->m_detailUsesHSV = false;
-        obj->m_baseUsesHSV = false;
-        obj->m_isHide = false;
     }
 };
