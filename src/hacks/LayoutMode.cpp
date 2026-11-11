@@ -11,11 +11,12 @@ namespace {
     bool s_enabled = false;
 
     bool isDecoration(GameObject* obj) {
-        return obj->m_objectType == GameObjectType::Decoration
+        return (obj->m_objectType == GameObjectType::Decoration
             && obj->m_objectID != 44
             && obj->m_objectID != 38
             && obj->m_objectID != 749
-            && obj->m_objectID != 747;
+            && obj->m_objectID != 747)
+            || obj->m_isNoTouch;
     }
 }
 
@@ -58,26 +59,27 @@ class $modify(LayoutPlayLayer, PlayLayer) {
     }
 
     void addObject(GameObject* obj) {
-        PlayLayer::addObject(obj);
         if (toasty::layout::enabled() && obj) {
             if (isDecoration(obj)) {
-                obj->CCNode::setVisible(false);
-            } else {
-                obj->m_isHide = false;
-                obj->CCNode::setVisible(true);
-                obj->setOpacity(255);
+                obj->m_isHide = true;
+                return; // skip adding decoration entirely
             }
+            obj->m_isHide = false;
+            obj->setOpacity(255);
         }
+        PlayLayer::addObject(obj);
     }
 };
 
 class $modify(LayoutGameObject, GameObject) {
-    void activateObject() {
-        GameObject::activateObject();
-        if (toasty::layout::enabled() && m_isHide && PlayLayer::get()) {
+    void addGlow(std::string p0) {
+        GameObject::addGlow(std::move(p0));
+        if (!toasty::layout::enabled() || !PlayLayer::get()) return;
+
+        if (isDecoration(this)) {
+            m_isHide = true;
+        } else {
             m_isHide = false;
-            CCNode::setVisible(true);
-            setOpacity(255);
         }
     }
 };
