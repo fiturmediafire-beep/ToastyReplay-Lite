@@ -93,16 +93,4 @@ class $modify(LayoutCCNode, CCNode) {
         if (isDecoration(obj)) return CCNode::setVisible(false);
         return CCNode::setVisible(true);
     }
-
-    void setOpacity(unsigned char opacity) {
-        if (!toasty::layout::enabled() || PlayLayer::get() == nullptr) {
-            return CCNode::setOpacity(opacity);
-        }
-        auto* obj = typeinfo_cast<GameObject*>(this);
-        if (!obj) return CCNode::setOpacity(opacity);
-
-        if (isDecoration(obj)) return CCNode::setOpacity(opacity);
-        if (opacity == 0) return CCNode::setOpacity(255);
-        return CCNode::setOpacity(opacity);
-    }
 };
