@@ -2,7 +2,6 @@
 
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
-#include <Geode/modify/GameObject.hpp>
 
 using namespace geode::prelude;
 
@@ -43,7 +42,15 @@ class $modify(LayoutPlayLayer, PlayLayer) {
         }
 
         if (s_objectFilter.contains(obj->m_objectID)) {
-            obj->m_isHide = true;
+            return;
+        }
+
+        if ((obj->m_objectType == GameObjectType::Decoration
+            && obj->m_objectID != 44
+            && obj->m_objectID != 38
+            && obj->m_objectID != 749
+            && obj->m_objectID != 747)
+            || obj->m_isNoTouch) {
             return;
         }
 
@@ -55,23 +62,5 @@ class $modify(LayoutPlayLayer, PlayLayer) {
         obj->m_isHide = false;
         obj->setOpacity(255);
         PlayLayer::addObject(obj);
-    }
-};
-
-class $modify(LayoutGameObject, GameObject) {
-    void addGlow(std::string p0) {
-        GameObject::addGlow(std::move(p0));
-        if (!toasty::layout::enabled() || !PlayLayer::get()) return;
-
-        if ((m_objectType == GameObjectType::Decoration
-            && m_objectID != 44
-            && m_objectID != 38
-            && m_objectID != 749
-            && m_objectID != 747)
-            || m_isNoTouch) {
-            m_isHide = true;
-        } else {
-            m_isHide = false;
-        }
     }
 };
