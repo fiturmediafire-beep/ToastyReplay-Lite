@@ -1,7 +1,6 @@
 #include "LayoutMode.hpp"
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
-#include <Geode/modify/GameObject.hpp>
 using namespace geode::prelude;
 
 namespace {
@@ -20,32 +19,26 @@ namespace toasty::layout {
     void setEnabled(bool on) { s_enabled = on; Mod::get()->setSavedValue<bool>("layout-mode", on); }
 }
 
-class $modify(LayoutGameObject, GameObject) {
-    void addGlow(std::string frame) {
-        if (!toasty::layout::enabled()) {
-            GameObject::addGlow(frame);
-            return;
-        }
-        bool isDecoration = (m_objectType == GameObjectType::Decoration
-            && m_objectID != 44 && m_objectID != 38
-            && m_objectID != 749 && m_objectID != 747);
-        bool isFilter = s_objectFilter.contains(m_objectID);
-        if (isDecoration || isFilter || m_isNoTouch) {
-            setVisible(false);
-            return;
-        }
-        m_hasNoGlow = true;
-        m_activeMainColorID = -1;
-        m_activeDetailColorID = -1;
-        m_detailUsesHSV = false;
-        m_baseUsesHSV = false;
-        m_isHide = false;
-        GameObject::addGlow(frame);
-    }
-};
-
 class $modify(LayoutPlayLayer, PlayLayer) {
     void addObject(GameObject* obj) {
         PlayLayer::addObject(obj);
+        if (!toasty::layout::enabled()) return;
+
+        bool isDecoration = (obj->m_objectType == GameObjectType::Decoration
+            && obj->m_objectID != 44 && obj->m_objectID != 38
+            && obj->m_objectID != 749 && obj->m_objectID != 747);
+        bool isFilter = s_objectFilter.contains(obj->m_objectID);
+
+        if (isDecoration || isFilter || obj->m_isNoTouch) {
+            obj->setVisible(false);
+            return;
+        }
+
+        obj->m_hasNoGlow = true;
+        obj->m_activeMainColorID = -1;
+        obj->m_activeDetailColorID = -1;
+        obj->m_detailUsesHSV = false;
+        obj->m_baseUsesHSV = false;
+        obj->m_isHide = false;
     }
 };
