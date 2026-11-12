@@ -111,20 +111,18 @@ class $modify(LayoutPlayLayer, PlayLayer) {
         if (!PlayLayer::init(level, dontCreateObjects)) return false;
         if (!toasty::layout::enabled()) return true;
 
-        // Reset background color to white
         if (m_background) {
-            m_background->setColor({ 255, 255, 255 });
+            m_background->setColor(ccc3(255, 255, 255));
         }
 
-        // Reset ground color to white via CCRGBAProtocol
         if (m_groundLayer) {
             if (auto* rgba = dynamic_cast<CCRGBAProtocol*>(m_groundLayer)) {
-                rgba->setColor({ 255, 255, 255 });
+                rgba->setColor(ccc3(255, 255, 255));
             }
         }
         if (m_groundLayer2) {
             if (auto* rgba = dynamic_cast<CCRGBAProtocol*>(m_groundLayer2)) {
-                rgba->setColor({ 255, 255, 255 });
+                rgba->setColor(ccc3(255, 255, 255));
             }
         }
 
