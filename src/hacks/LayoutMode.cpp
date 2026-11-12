@@ -107,8 +107,8 @@ class $modify(LayoutPlayLayer, PlayLayer) {
         }
     }
 
-    bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
-        if (!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
+    bool init(GJGameLevel* level, bool dontCreateObjects) {
+        if (!PlayLayer::init(level, dontCreateObjects)) return false;
         if (!toasty::layout::enabled()) return true;
 
         // Reset background color to white
@@ -116,12 +116,16 @@ class $modify(LayoutPlayLayer, PlayLayer) {
             m_background->setColor({ 255, 255, 255 });
         }
 
-        // Reset ground color to white
+        // Reset ground color to white via CCRGBAProtocol
         if (m_groundLayer) {
-            static_cast<CCSpriteBatchNode*>(m_groundLayer)->setColor({ 255, 255, 255 });
+            if (auto* rgba = dynamic_cast<CCRGBAProtocol*>(m_groundLayer)) {
+                rgba->setColor({ 255, 255, 255 });
+            }
         }
         if (m_groundLayer2) {
-            static_cast<CCSpriteBatchNode*>(m_groundLayer2)->setColor({ 255, 255, 255 });
+            if (auto* rgba = dynamic_cast<CCRGBAProtocol*>(m_groundLayer2)) {
+                rgba->setColor({ 255, 255, 255 });
+            }
         }
 
         return true;
