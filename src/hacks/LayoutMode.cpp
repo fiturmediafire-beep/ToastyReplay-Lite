@@ -2,7 +2,6 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/GameObject.hpp>
-#include <Geode/modify/GJBaseGameLayer.hpp>
 using namespace geode::prelude;
 
 namespace {
@@ -107,34 +106,24 @@ class $modify(LayoutPlayLayer, PlayLayer) {
             obj->setVisible(false);
         }
     }
-};
 
-class $modify(LayoutBaseLayer, GJBaseGameLayer) {
-    void setupBackground(int bg) {
-        GJBaseGameLayer::setupBackground(bg);
-        if (!toasty::layout::enabled()) return;
-        // reset ke warna putih default
-        if (m_backgroundSprite) {
-            m_backgroundSprite->setColor({ 255, 255, 255 });
+    bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
+        if (!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
+        if (!toasty::layout::enabled()) return true;
+
+        // Reset background color to white
+        if (m_background) {
+            m_background->setColor({ 255, 255, 255 });
         }
-    }
 
-    void updateBackground(float dt) {
-        GJBaseGameLayer::updateBackground(dt);
-        if (!toasty::layout::enabled()) return;
-        if (m_backgroundSprite) {
-            m_backgroundSprite->setColor({ 255, 255, 255 });
-        }
-    }
-
-    void updateGround(float dt) {
-        GJBaseGameLayer::updateGround(dt);
-        if (!toasty::layout::enabled()) return;
+        // Reset ground color to white
         if (m_groundLayer) {
-            m_groundLayer->setColor({ 255, 255, 255 });
+            static_cast<CCSpriteBatchNode*>(m_groundLayer)->setColor({ 255, 255, 255 });
         }
         if (m_groundLayer2) {
-            m_groundLayer2->setColor({ 255, 255, 255 });
+            static_cast<CCSpriteBatchNode*>(m_groundLayer2)->setColor({ 255, 255, 255 });
         }
+
+        return true;
     }
 };
