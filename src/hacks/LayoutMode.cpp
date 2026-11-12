@@ -33,24 +33,26 @@ namespace toasty::layout {
 class $modify(LayoutPlayLayer, PlayLayer) {
     bool init(GJGameLevel* level, bool dontCreateObjects) {
         if (!PlayLayer::init(level, dontCreateObjects)) return false;
+        return true;
+    }
 
-        if (toasty::layout::enabled()) {
-            if (m_background) {
-                m_background->setColor(ccc3(255, 255, 255));
-            }
-            if (m_groundLayer) {
-                if (auto* rgba = dynamic_cast<CCRGBAProtocol*>(m_groundLayer)) {
-                    rgba->setColor(ccc3(255, 255, 255));
-                }
-            }
-            if (m_groundLayer2) {
-                if (auto* rgba = dynamic_cast<CCRGBAProtocol*>(m_groundLayer2)) {
-                    rgba->setColor(ccc3(255, 255, 255));
-                }
+    void update(float dt) {
+        PlayLayer::update(dt);
+        if (!toasty::layout::enabled()) return;
+
+        if (m_background) {
+            m_background->setColor(ccc3(0, 102, 255));
+        }
+        if (m_groundLayer) {
+            if (auto* rgba = dynamic_cast<CCRGBAProtocol*>(m_groundLayer)) {
+                rgba->setColor(ccc3(0, 102, 255));
             }
         }
-
-        return true;
+        if (m_groundLayer2) {
+            if (auto* rgba = dynamic_cast<CCRGBAProtocol*>(m_groundLayer2)) {
+                rgba->setColor(ccc3(0, 102, 255));
+            }
+        }
     }
 
     void addObject(GameObject* obj) {
@@ -60,6 +62,16 @@ class $modify(LayoutPlayLayer, PlayLayer) {
         }
 
         if (s_objectFilter.contains(obj->m_objectID)) {
+            obj->m_isHide = true;
+            return;
+        }
+
+        if ((obj->m_objectType == GameObjectType::Decoration
+            && obj->m_objectID != 44
+            && obj->m_objectID != 38
+            && obj->m_objectID != 749
+            && obj->m_objectID != 747)
+            || obj->m_isNoTouch) {
             obj->m_isHide = true;
             return;
         }
