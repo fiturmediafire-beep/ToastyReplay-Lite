@@ -17,6 +17,8 @@
 #include "ui/StepperButtons.hpp"
 #include "ui/Watermark.hpp"
 #include "hacks/LayoutMode.hpp"
+#include "hacks/Trajectory.hpp"
+#include "i18n/Lang.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -502,6 +504,8 @@ bool ToastyMenu::init() {
             this->makeToggleRow("auto-save-macros",
                                 "Auto Save Macros",
                                 Mod::get()->getSavedValue<bool>("auto-save-macros", true)));
+        scroll->m_contentLayer->addChild(
+        this->makeLanguageRow());
 
         scroll->m_contentLayer->updateLayout();
         scroll->scrollToTop();
@@ -1030,6 +1034,37 @@ CCNode* ToastyMenu::makeLayoutModeRow() {
         row.menu->addChild(info);
     }
 
+    return row.node;
+}
+
+CCNode* ToastyMenu::makeTrajectoryRow() {
+    auto row = this->makeRow("Show Trajectory", ROW_H, 160.f);
+    row.node->setID("show-trajectory");
+    auto toggle = CCMenuItemToggler::createWithStandardSprites(
+        this, menu_selector(ToastyMenu::onTrajectoryToggle), .6f);
+    placeCenter(toggle, CONTROL_CENTER, ROW_H / 2.f);
+    toggle->toggle(toasty::trajectory::enabled());
+    toggle->setID("show-trajectory-toggle");
+    row.menu->addChild(toggle);
+    return row.node;
+}
+
+CCNode* ToastyMenu::makeLanguageRow() {
+    auto row = this->makeRow("Language", ROW_H, 120.f);
+    row.node->setID("language");
+    bool isID = toasty::i18n::current() == toasty::i18n::Language::Indonesian;
+    auto toggle = CCMenuItemToggler::createWithStandardSprites(
+        this, menu_selector(ToastyMenu::onLanguageToggle), .6f);
+    auto next = placeCenter(toggle, CONTROL_CENTER, ROW_H / 2.f);
+    toggle->toggle(isID);
+    toggle->setID("language-toggle");
+    row.menu->addChild(toggle);
+    auto label = Label::create(isID ? "ID" : "EN", "bigFont.fnt");
+    label->setScale(.35f);
+    label->setAnchorPoint({1.f, .5f});
+    label->setPosition({next - 4.f, ROW_H / 2.f});
+    label->setID("language-label");
+    row.node->addChild(label);
     return row.node;
 }
 
@@ -1654,6 +1689,24 @@ void ToastyMenu::onLayoutModeInfo(CCObject*) {
         "Useful on low-end devices where decorations cause lag during replay playback.",
         "OK")
         ->show();
+}
+
+void ToastyMenu::onTrajectoryToggle(CCObject* sender) {
+    auto toggle = static_cast<CCMenuItemToggler*>(sender);
+    toasty::trajectory::setEnabled(!toggle->isToggled());
+}
+
+void ToastyMenu::onLanguageToggle(CCObject* sender) {
+    auto toggle = static_cast<CCMenuItemToggler*>(sender);
+    bool nowID = !toggle->isToggled();
+    toasty::i18n::setLanguage(
+        nowID ? toasty::i18n::Language::Indonesian : toasty::i18n::Language::English);
+    auto row = toggle->getParent() ? toggle->getParent()->getParent() : nullptr;
+    if (row) {
+        if (auto label = typeinfo_cast<Label*>(row->getChildByID("language-label"))) {
+            label->setText(nowID ? "ID" : "EN");
+        }
+    }
 }
 
 void ToastyMenu::onTpsInfo(CCObject* sender) {
