@@ -79,15 +79,15 @@ private:
         m_ghost->releaseButton(PlayerButton::Jump);
         if (held) m_ghost->pushButton(PlayerButton::Jump);
 
-        // Hijau = hold, biru = release
-        ccColor4F baseCol = held
-            ? ccc4f(0.2f, 1.0f, 0.4f, 1.f)
-            : ccc4f(0.2f, 0.8f, 1.0f, 1.f);
+        // Kuning = hold, putih = release
+ccColor4F baseCol = held
+    ? ccc4f(1.0f, 0.9f, 0.1f, 1.f)   // kuning
+    : ccc4f(1.0f, 1.0f, 1.0f, 1.f);  // putih
 
-        static constexpr int   ITERS    = 200;
-        static constexpr float DELTA    = 0.5f / 60.f;
-        static constexpr float DOT_STEP = 8.f;
-        static constexpr float BASE_R   = 3.5f;
+static constexpr int   ITERS    = 200;
+static constexpr float DELTA    = 0.5f / 60.f;
+static constexpr float DOT_STEP = 4.f;   // lebih rapat
+static constexpr float BASE_R   = 6.f;   // lebih besar
 
         CCPoint prev    = m_ghost->getPosition();
         float   accDist = 0.f;
