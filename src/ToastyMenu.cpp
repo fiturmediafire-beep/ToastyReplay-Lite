@@ -369,6 +369,8 @@ bool ToastyMenu::init() {
                                 Mod::get()->getSavedValue<bool>("auto-safe-mode", false)));
 
         scroll->m_contentLayer->addChild(this->makeLayoutModeRow());
+        scroll->m_contentLayer->addChild(
+    this->makeTrajectoryRow());
 
 
         scroll->m_contentLayer->updateLayout();
