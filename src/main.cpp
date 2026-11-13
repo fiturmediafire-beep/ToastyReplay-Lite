@@ -7,11 +7,16 @@
 #include "ToastyMenu.hpp"
 #include "ui/Notifications.hpp"
 #include "hacks/LayoutMode.hpp"
+#include "hacks/Trajectory.hpp"
+#include "i18n/Lang.hpp"
 
 using namespace geode::prelude;
 
 $on_mod(Loaded) {
     toasty::layout::loadSaved();
+    // di dalam $on_mod(Loaded):
+toasty::trajectory::loadSaved();
+toasty::i18n::loadSaved();
 }
 
 $on_mod(Loaded) {
