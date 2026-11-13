@@ -62,7 +62,6 @@ private:
     void copyState(PlayerObject* src, PlayerObject* dst) {
         dst->setPosition(src->getPosition());
         dst->m_yVelocity     = src->m_yVelocity;
-        dst->m_xVelocity     = src->m_xVelocity;
         dst->m_isShip        = src->m_isShip;
         dst->m_isBall        = src->m_isBall;
         dst->m_isBird        = src->m_isBird;
