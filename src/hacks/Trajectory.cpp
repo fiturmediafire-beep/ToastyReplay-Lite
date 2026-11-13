@@ -34,7 +34,7 @@ public:
     void redraw() {
         this->clear();
 
-        // Remove old labels
+        // Hide old labels
         if (auto* l = typeinfo_cast<CCLabelBMFont*>(this->getChildByTag(100))) l->setVisible(false);
         if (auto* l = typeinfo_cast<CCLabelBMFont*>(this->getChildByTag(101))) l->setVisible(false);
 
@@ -47,12 +47,12 @@ public:
     }
 
 private:
-    GJBaseGameLayer* m_bgl = nullptr;
+    GJBaseGameLayer* m_bgl   = nullptr;
     PlayerObject*    m_ghost = nullptr;
 
     bool init(GJBaseGameLayer* bgl) {
         if (!CCDrawNode::init()) return false;
-        m_bgl = bgl;
+        m_bgl   = bgl;
         m_ghost = PlayerObject::create(0, 0, bgl, bgl->m_objectLayer, false);
         m_ghost->setVisible(false);
         bgl->m_objectLayer->addChild(m_ghost);
@@ -61,17 +61,23 @@ private:
 
     void copyState(PlayerObject* src, PlayerObject* dst) {
         dst->setPosition(src->getPosition());
-        dst->m_yVelocity     = src->m_yVelocity;
-        dst->m_isShip        = src->m_isShip;
-        dst->m_isBall        = src->m_isBall;
-        dst->m_isBird        = src->m_isBird;
-        dst->m_isDart        = src->m_isDart;
-        dst->m_isRobot       = src->m_isRobot;
-        dst->m_isSpider      = src->m_isSpider;
-        dst->m_isSwing       = src->m_isSwing;
-        dst->m_isUpsideDown  = src->m_isUpsideDown;
-        dst->m_isDead        = false;
+        dst->m_yVelocity        = src->m_yVelocity;
+        dst->m_isShip           = src->m_isShip;
+        dst->m_isBall           = src->m_isBall;
+        dst->m_isBird           = src->m_isBird;
+        dst->m_isDart           = src->m_isDart;
+        dst->m_isRobot          = src->m_isRobot;
+        dst->m_isSpider         = src->m_isSpider;
+        dst->m_isSwing          = src->m_isSwing;
+        dst->m_isUpsideDown     = src->m_isUpsideDown;
+        dst->m_isDead           = false;
         dst->m_maybeIsColliding = false;
+    }
+
+    // Convert object-layer position to this node's local space
+    CCPoint toLocal(CCPoint objPos) {
+        CCPoint world = m_bgl->m_objectLayer->convertToWorldSpace(objPos);
+        return this->convertToNodeSpace(world);
     }
 
     void simulateOnce(PlayerObject* plr, bool held) {
@@ -80,14 +86,14 @@ private:
         if (held) m_ghost->pushButton(PlayerButton::Jump);
 
         // Kuning = hold, putih = release
-ccColor4F baseCol = held
-    ? ccc4f(1.0f, 0.9f, 0.1f, 1.f)   // kuning
-    : ccc4f(1.0f, 1.0f, 1.0f, 1.f);  // putih
+        ccColor4F baseCol = held
+            ? ccc4f(1.0f, 0.9f, 0.1f, 1.f)
+            : ccc4f(1.0f, 1.0f, 1.0f, 1.f);
 
-static constexpr int   ITERS    = 200;
-static constexpr float DELTA    = 0.5f / 60.f;
-static constexpr float DOT_STEP = 4.f;   // lebih rapat
-static constexpr float BASE_R   = 6.f;   // lebih besar
+        static constexpr int   ITERS    = 200;
+        static constexpr float DELTA    = 0.5f / 60.f;
+        static constexpr float DOT_STEP = 4.f;
+        static constexpr float BASE_R   = 6.f;
 
         CCPoint prev    = m_ghost->getPosition();
         float   accDist = 0.f;
@@ -103,22 +109,23 @@ static constexpr float BASE_R   = 6.f;   // lebih besar
             m_bgl->checkCollisions(m_ghost, DELTA, false);
             m_ghost->updateRotation(DELTA);
 
-            CCPoint cur = m_ghost->getPosition();
+            CCPoint cur    = m_ghost->getPosition();
             float   segLen = ccpDistance(prev, cur);
             accDist += segLen;
 
             float t = static_cast<float>(i) / static_cast<float>(ITERS);
 
             if (m_ghost->m_isDead || m_ghost->m_maybeIsColliding) {
-                // Lingkaran merah berdenyut
+                // Lingkaran merah berdenyut (Impact Timer)
                 float time  = CCDirector::sharedDirector()->getTotalFrames() * (1.f / 60.f);
                 float pulse = 0.5f + 0.5f * std::sin(time * 6.f);
                 float ringR = 10.f + pulse * 5.f;
                 float alpha = 0.9f - pulse * 0.3f;
-                drawCircle(cur, ringR, ccc4f(1.f, 0.15f, 0.15f, alpha),
+                CCPoint localCur = toLocal(cur);
+                drawCircle(localCur, ringR, ccc4f(1.f, 0.15f, 0.15f, alpha),
                            1.5f, ccc4f(1.f, 0.15f, 0.15f, 0.f), 24);
 
-                // Timer label
+                // Countdown timer label
                 float secs = static_cast<float>(i) * DELTA;
                 ccColor3B textCol;
                 if (secs > 1.f)       textCol = ccc3(80, 255, 80);
@@ -135,14 +142,12 @@ static constexpr float BASE_R   = 6.f;   // lebih besar
                 }
                 label->setString(fmt::format("{:.1f}s", secs).c_str());
                 label->setColor(textCol);
-                CCPoint worldPos = m_bgl->m_objectLayer->convertToWorldSpace(cur);
-                CCPoint localPos = this->convertToNodeSpace(worldPos);
-                label->setPosition(localPos + CCPoint{0.f, 18.f});
+                label->setPosition(localCur + CCPoint{0.f, 18.f});
                 label->setVisible(true);
                 break;
             }
 
-            // Dots dengan fade
+            // Dots dengan fade out
             while (accDist >= DOT_STEP) {
                 accDist -= DOT_STEP;
                 dotIdx++;
@@ -151,7 +156,7 @@ static constexpr float BASE_R   = 6.f;   // lebih besar
                 if (dotIdx % 5 == 0) r *= 1.4f;
                 ccColor4F col = baseCol;
                 col.a = alpha;
-                drawDot(cur, r, col);
+                drawDot(toLocal(cur), r, col);
             }
 
             prev = cur;
