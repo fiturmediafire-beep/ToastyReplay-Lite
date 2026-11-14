@@ -65,29 +65,32 @@ static void copyState(PlayerObject* src, PlayerObject* dst) {
     dst->m_maybeIsColliding = false;
 }
 
-static void drawImpact(CCDrawNode* node, CCPoint pos) {
-    float time  = CCDirector::sharedDirector()->getTotalFrames() * (1.f / 60.f);
-    float pulse = 0.5f + 0.5f * std::sin(time * 6.f);
-    float ringR = 10.f + pulse * 5.f;
-    float alpha = 0.9f - pulse * 0.3f;
-    const int SEG = 24;
-    std::vector<CCPoint> pts(SEG);
-    for (int i = 0; i < SEG; i++) {
-        float a = static_cast<float>(i) / SEG * M_PI * 2.f;
-        pts[i] = pos + CCPoint{std::cos(a) * ringR, std::sin(a) * ringR};
-    }
-    node->drawPolygon(pts.data(), SEG,
-        ccc4f(1.f, 0.15f, 0.15f, alpha * 0.3f),
-        1.5f, ccc4f(1.f, 0.15f, 0.15f, alpha));
+static CCPoint s_impactPos[2]  = {};
+static float   s_impactSecs[2] = {-1.f, -1.f};
+
+static void drawImpact(CCDrawNode* node, CCPoint pos, float secs, int idx) {
+    s_impactPos[idx]  = pos;
+    s_impactSecs[idx] = secs;
+
+    float half = 15.f;
+    CCPoint verts[4] = {
+        pos + CCPoint{-half, -half},
+        pos + CCPoint{ half, -half},
+        pos + CCPoint{ half,  half},
+        pos + CCPoint{-half,  half},
+    };
+    node->drawPolygon(verts, 4,
+        ccc4f(1.f, 0.15f, 0.15f, 0.25f),
+        1.5f, ccc4f(1.f, 0.15f, 0.15f, 0.9f));
 }
 
 static void simulateOnce(GJBaseGameLayer* bgl, PlayerObject* ghost,
-                          PlayerObject* real, bool held) {
+                          PlayerObject* real, bool held, int impactIdx) {
     copyState(real, ghost);
     ghost->releaseButton(PlayerButton::Jump);
     if (held) ghost->pushButton(PlayerButton::Jump);
 
-    static constexpr int   ITERS = 1200;
+    static constexpr int   ITERS = 4000;
     static constexpr float DELTA = 1.f / 60.f;
 
     ccColor4F col = held
@@ -106,7 +109,8 @@ static void simulateOnce(GJBaseGameLayer* bgl, PlayerObject* ghost,
         bgl->checkCollisions(ghost, DELTA, false);
 
         if (s_cancel) {
-            drawImpact(getNode(), ghost->getPosition());
+            float secs = static_cast<float>(i) * DELTA;
+            drawImpact(getNode(), ghost->getPosition(), secs, impactIdx);
             break;
         }
 
@@ -126,11 +130,25 @@ static void simulateOnce(GJBaseGameLayer* bgl, PlayerObject* ghost,
 static void updateTrajectory(PlayLayer* pl, PlayerObject* ghost1, PlayerObject* ghost2) {
     if (!ghost1 || !ghost2) return;
     s_creating = true;
+    s_impactSecs[0] = s_impactSecs[1] = -1.f;
     getNode()->setVisible(true);
     getNode()->clear();
-    simulateOnce(pl, ghost1, pl->m_player1, true);
-    simulateOnce(pl, ghost2, pl->m_player1, false);
+
+    simulateOnce(pl, ghost1, pl->m_player1, true,  0);
+    simulateOnce(pl, ghost2, pl->m_player1, false, 1);
+
     s_creating = false;
+}
+
+static CCLabelBMFont* getTimerLabel(CCNode* parent, int tag) {
+    auto* l = typeinfo_cast<CCLabelBMFont*>(parent->getChildByTag(tag));
+    if (!l) {
+        l = CCLabelBMFont::create("", "bigFont.fnt");
+        l->setScale(0.5f);
+        l->setTag(tag);
+        parent->addChild(l, 200);
+    }
+    return l;
 }
 
 class $modify(TrajPlayLayer, PlayLayer) {
@@ -166,6 +184,26 @@ class $modify(TrajPlayLayer, PlayLayer) {
         PlayLayer::postUpdate(dt);
         if (!toasty::trajectory::enabled() || s_creating) return;
         updateTrajectory(this, m_fields->ghost1, m_fields->ghost2);
+
+        for (int idx = 0; idx < 2; idx++) {
+            auto* lbl = getTimerLabel(this, 9900 + idx);
+            if (s_impactSecs[idx] < 0.f) {
+                lbl->setVisible(false);
+                continue;
+            }
+            CCPoint world = m_objectLayer->convertToWorldSpace(s_impactPos[idx]);
+            lbl->setPosition(world + CCPoint{0.f, 22.f});
+
+            float secs = s_impactSecs[idx];
+            ccColor3B col;
+            if (secs > 1.f)       col = ccc3(80, 255, 80);
+            else if (secs > 0.5f) col = ccc3(255, 220, 50);
+            else                  col = ccc3(255, 60, 60);
+
+            lbl->setString(fmt::format("{:.1f}s", secs).c_str());
+            lbl->setColor(col);
+            lbl->setVisible(true);
+        }
     }
 
     void destroyPlayer(PlayerObject* player, GameObject* obj) {
@@ -181,6 +219,7 @@ class $modify(TrajPlayLayer, PlayLayer) {
         if (s_node) s_node->clear();
         s_cancel = false;
         s_creating = false;
+        s_impactSecs[0] = s_impactSecs[1] = -1.f;
         m_fields->ghost1 = nullptr;
         m_fields->ghost2 = nullptr;
         PlayLayer::onQuit();
