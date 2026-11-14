@@ -11,6 +11,7 @@
 
 using namespace geode::prelude;
 
+// ── state ────────────────────────────────────────────────────────────────────
 namespace {
     bool  s_enabled          = false;
     bool  s_creating         = false;
@@ -28,6 +29,9 @@ namespace toasty::trajectory {
     }
 }
 
+// ── TrajectoryNode ────────────────────────────────────────────────────────────
+// Attach ke m_objectLayer, draw langsung di object-layer coordinates.
+// Tidak perlu konversi — CCDrawNode anak m_objectLayer = sama space.
 class TrajectoryNode : public CCDrawNode {
 public:
     static TrajectoryNode* create() {
@@ -50,6 +54,7 @@ static TrajectoryNode* getNode() {
     return s_node;
 }
 
+// ── simulation ────────────────────────────────────────────────────────────────
 static void copyState(PlayerObject* src, PlayerObject* dst) {
     dst->setPosition(src->getPosition());
     dst->m_yVelocity        = src->m_yVelocity;
@@ -65,13 +70,16 @@ static void copyState(PlayerObject* src, PlayerObject* dst) {
     dst->m_maybeIsColliding = false;
 }
 
+// s_impactPos & s_impactSecs disimpan saat simulasi, digambar di redraw
 static CCPoint s_impactPos[2]  = {};
 static float   s_impactSecs[2] = {-1.f, -1.f};
 
 static void drawImpact(CCDrawNode* node, CCPoint pos, float secs, int idx) {
+    // simpan untuk timer label (digambar lewat CCLabelBMFont di PlayLayer node)
     s_impactPos[idx]  = pos;
     s_impactSecs[idx] = secs;
 
+    // kotak hitbox, bukan lingkaran
     float half = 15.f;
     CCPoint verts[4] = {
         pos + CCPoint{-half, -half},
@@ -90,9 +98,12 @@ static void simulateOnce(GJBaseGameLayer* bgl, PlayerObject* ghost,
     ghost->releaseButton(PlayerButton::Jump);
     if (held) ghost->pushButton(PlayerButton::Jump);
 
-    static constexpr int   ITERS = 4000;
-    static constexpr float DELTA = 1.f / 60.f;
+    // Delta besar = lebih sedikit iterasi, lebih jauh jangkauan, lebih ringan
+    // 300 iter × 1/15s = 20 detik ke depan, beban 4x lebih ringan dari 1200×1/60
+    static constexpr int   ITERS    = 300;
+    static constexpr float DELTA    = 1.f / 15.f;
 
+    // warna: putih=release, kuning=hold
     ccColor4F col = held
         ? ccc4f(1.0f, 0.9f, 0.1f, 0.9f)
         : ccc4f(1.0f, 1.0f, 1.0f, 0.9f);
@@ -119,10 +130,13 @@ static void simulateOnce(GJBaseGameLayer* bgl, PlayerObject* ghost,
 
         CCPoint cur = ghost->getPosition();
 
+        // fade alpha di ujung
         if (i >= ITERS - 40)
             col.a = static_cast<float>(ITERS - i) / 40.f;
 
+        // drawSegment = line tebal, pasti kelihatan, sama persis dengan xdBot
         getNode()->drawSegment(prev, cur, 0.6f, col);
+
         prev = cur;
     }
 }
@@ -140,6 +154,7 @@ static void updateTrajectory(PlayLayer* pl, PlayerObject* ghost1, PlayerObject* 
     s_creating = false;
 }
 
+// ── hooks ─────────────────────────────────────────────────────────────────────
 static CCLabelBMFont* getTimerLabel(CCNode* parent, int tag) {
     auto* l = typeinfo_cast<CCLabelBMFont*>(parent->getChildByTag(tag));
     if (!l) {
@@ -157,12 +172,15 @@ class $modify(TrajPlayLayer, PlayLayer) {
         PlayerObject* ghost2 = nullptr;
     };
 
+    // setupHasCompleted = setelah semua objek di-load, cocok untuk init ghost
     void setupHasCompleted() {
         PlayLayer::setupHasCompleted();
+
         m_fields->ghost1 = nullptr;
         m_fields->ghost2 = nullptr;
         s_cancel = false;
         s_creating = false;
+
         if (!toasty::trajectory::enabled()) return;
 
         m_fields->ghost1 = PlayerObject::create(1, 1, this, this, true);
@@ -180,17 +198,20 @@ class $modify(TrajPlayLayer, PlayLayer) {
         m_objectLayer->addChild(getNode(), 500);
     }
 
+    // postUpdate = setelah physics, timing yang benar
     void postUpdate(float dt) {
         PlayLayer::postUpdate(dt);
         if (!toasty::trajectory::enabled() || s_creating) return;
         updateTrajectory(this, m_fields->ghost1, m_fields->ghost2);
 
+        // Gambar timer label di screen space untuk setiap impact point
         for (int idx = 0; idx < 2; idx++) {
             auto* lbl = getTimerLabel(this, 9900 + idx);
             if (s_impactSecs[idx] < 0.f) {
                 lbl->setVisible(false);
                 continue;
             }
+            // Konversi object-layer coords ke screen (UI) coords
             CCPoint world = m_objectLayer->convertToWorldSpace(s_impactPos[idx]);
             lbl->setPosition(world + CCPoint{0.f, 22.f});
 
@@ -207,6 +228,7 @@ class $modify(TrajPlayLayer, PlayLayer) {
     }
 
     void destroyPlayer(PlayerObject* player, GameObject* obj) {
+        // jika ghost yang mati, cancel simulasi saja
         if (s_creating && (player == m_fields->ghost1 || player == m_fields->ghost2)) {
             s_deathRotation = player->getRotation();
             s_cancel = true;
@@ -226,10 +248,12 @@ class $modify(TrajPlayLayer, PlayLayer) {
     }
 
     void playEndAnimationToPos(CCPoint p0) {
-        if (!s_creating) PlayLayer::playEndAnimationToPos(p0);
+        if (!s_creating)
+            PlayLayer::playEndAnimationToPos(p0);
     }
 };
 
+// Blokir side effects selama simulasi
 class $modify(TrajBGL, GJBaseGameLayer) {
     bool canBeActivatedByPlayer(PlayerObject* p0, EffectGameObject* p1) {
         if (s_creating) return false;
