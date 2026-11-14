@@ -87,7 +87,7 @@ static void simulateOnce(GJBaseGameLayer* bgl, PlayerObject* ghost,
     ghost->releaseButton(PlayerButton::Jump);
     if (held) ghost->pushButton(PlayerButton::Jump);
 
-    static constexpr int   ITERS = 240;
+    static constexpr int   ITERS = 1200;
     static constexpr float DELTA = 1.f / 60.f;
 
     ccColor4F col = held
