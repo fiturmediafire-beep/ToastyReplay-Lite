@@ -18,6 +18,8 @@ namespace {
     bool  s_cancel           = false;
     float s_delta            = 1.f / 60.f;
     float s_deathRotation    = 0.f;
+    // ghost yang sedang disimulasi (untuk destroyPlayer)
+    PlayerObject* s_activeGhost = nullptr;
 }
 
 namespace toasty::trajectory {
@@ -110,6 +112,7 @@ static void simulateOnce(GJBaseGameLayer* bgl, PlayerObject* ghost,
 
     CCPoint prev = ghost->getPosition();
     s_cancel = false;
+    s_activeGhost = ghost;
 
     for (int i = 0; i < ITERS; i++) {
         ghost->m_collisionLogTop->removeAllObjects();
@@ -228,8 +231,8 @@ class $modify(TrajPlayLayer, PlayLayer) {
     }
 
     void destroyPlayer(PlayerObject* player, GameObject* obj) {
-        // jika ghost yang mati, cancel simulasi saja
-        if (s_creating && (player == m_fields->ghost1 || player == m_fields->ghost2)) {
+        // jika ghost aktif yang mati, cancel simulasi ini saja
+        if (s_creating && player == s_activeGhost) {
             s_deathRotation = player->getRotation();
             s_cancel = true;
             return;
@@ -238,7 +241,10 @@ class $modify(TrajPlayLayer, PlayLayer) {
     }
 
     void onQuit() {
-        if (s_node) s_node->clear();
+        if (s_node) {
+            s_node->removeFromParentAndCleanup(false);
+            s_node->clear();
+        }
         s_cancel = false;
         s_creating = false;
         s_impactSecs[0] = s_impactSecs[1] = -1.f;
