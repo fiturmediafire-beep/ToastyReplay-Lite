@@ -40,7 +40,35 @@ public:
 
     bool isSimulating() { return s_simulating; }
 
-    void simulate(PlayerObject* plr, bool held) {
+    // gambar kotak hitbox saat impact (port dari qolmod drawPlayerHitbox, versi sederhana)
+    void drawImpactHitbox(PlayerObject* plr) {
+        auto rect = plr->getObjectRect(plr->m_vehicleSize, plr->m_vehicleSize);
+        CCPoint verts[4] = {
+            ccp(rect.getMinX(), rect.getMinY()),
+            ccp(rect.getMaxX(), rect.getMinY()),
+            ccp(rect.getMaxX(), rect.getMaxY()),
+            ccp(rect.getMinX(), rect.getMaxY()),
+        };
+        drawPolygon(verts, 4,
+            ccc4f(1.f, 0.15f, 0.15f, 0.25f),
+            1.5f,
+            ccc4f(1.f, 0.15f, 0.15f, 0.9f));
+
+        // inner hitbox (kecil)
+        auto rect2 = plr->getObjectRect(0.3f, 0.3f);
+        CCPoint verts2[4] = {
+            ccp(rect2.getMinX(), rect2.getMinY()),
+            ccp(rect2.getMaxX(), rect2.getMinY()),
+            ccp(rect2.getMaxX(), rect2.getMaxY()),
+            ccp(rect2.getMinX(), rect2.getMaxY()),
+        };
+        drawPolygon(verts2, 4,
+            ccc4f(1.f, 0.15f, 0.15f, 0.1f),
+            1.f,
+            ccc4f(1.f, 0.5f, 0.5f, 0.9f));
+    }
+
+    void simulate(GJBaseGameLayer* bgl, PlayerObject* plr, bool held) {
         if (!plr || plr->m_isDead || !m_ghost) return;
 
         // copy state
@@ -60,17 +88,12 @@ public:
         m_ghost->releaseButton(PlayerButton::Jump);
         if (held) m_ghost->pushButton(PlayerButton::Jump);
 
-        // sama persis qolmod: delta=0.5, iters=240
         static constexpr float DELTA = 0.5f;
         static constexpr int   ITERS = 240;
 
         ccColor4F col = held
             ? ccc4f(1.0f, 0.9f, 0.1f, 0.9f)
             : ccc4f(1.0f, 1.0f, 1.0f, 0.9f);
-
-        auto* bgl = static_cast<GJBaseGameLayer*>(
-            CCDirector::sharedDirector()->getRunningScene()->getChildByType<PlayLayer>(0));
-        if (!bgl) return;
 
         CCPoint prev = m_ghost->getPosition();
         s_simulating = true;
@@ -95,18 +118,20 @@ public:
             drawSegment(prev, cur, 1.f, col);
             prev = cur;
 
-            if (m_ghost->m_isDead || m_ghost->m_maybeIsColliding)
+            if (m_ghost->m_isDead || m_ghost->m_maybeIsColliding) {
+                drawImpactHitbox(m_ghost);
                 break;
+            }
         }
 
         s_simulating = false;
     }
 
-    void redraw(PlayerObject* plr) {
+    void redraw(GJBaseGameLayer* bgl, PlayerObject* plr) {
         clear();
         if (!s_enabled || !plr) return;
-        simulate(plr, false);
-        simulate(plr, true);
+        simulate(bgl, plr, false);
+        simulate(bgl, plr, true);
     }
 };
 
@@ -123,14 +148,12 @@ class $modify(TrajPlayLayer, PlayLayer) {
 
         if (!toasty::trajectory::enabled()) return;
 
-        // buat ghost player
         m_fields->ghost = PlayerObject::create(1, 1, this, this, true);
         m_fields->ghost->retain();
         m_fields->ghost->setPosition({0, 105});
         m_fields->ghost->setVisible(false);
         m_objectLayer->addChild(m_fields->ghost);
 
-        // buat draw node, attach ke m_objectLayer (sama space)
         if (!s_node) {
             s_node = TrajectoryNode::create();
             s_node->retain();
@@ -140,19 +163,17 @@ class $modify(TrajPlayLayer, PlayLayer) {
 
         ccBlendFunc bf; bf.src = GL_SRC_ALPHA; bf.dst = GL_ONE_MINUS_SRC_ALPHA;
         s_node->setBlendFunc(bf);
-
         m_objectLayer->addChild(s_node, 500);
     }
 
     void postUpdate(float dt) {
         PlayLayer::postUpdate(dt);
         if (!toasty::trajectory::enabled() || s_simulating) return;
-        if (s_node) s_node->redraw(m_player1);
+        if (s_node) s_node->redraw(this, m_player1);
     }
 
     void destroyPlayer(PlayerObject* player, GameObject* obj) {
-        // qolmod: saat simulasi, cukup set m_isDead = true
-        if (s_simulating && player == s_node->m_ghost) {
+        if (s_simulating && s_node && player == s_node->m_ghost) {
             player->m_isDead = true;
             return;
         }
@@ -175,7 +196,89 @@ class $modify(TrajPlayLayer, PlayLayer) {
 };
 
 // ── GJBaseGameLayer hooks ─────────────────────────────────────────────────────
+// Port dari qolmod: collisionCheckObjects handle portal saat simulasi
 class $modify(TrajBGL, GJBaseGameLayer) {
+
+    // port qolmod customCollisionCheck — handle portal & orb saat simulasi
+    void customCollisionCheck(PlayerObject* player, GameObject* obj) {
+        bool intersects = player->getObjectRect().intersectsRect(obj->getObjectRect());
+        if (!intersects) return;
+
+        switch (obj->m_objectType) {
+            case GameObjectType::CubePortal:
+                player->toggleFlyMode(false, false);
+                player->toggleRollMode(false, false);
+                player->toggleBirdMode(false, false);
+                player->toggleDartMode(false, false);
+                player->toggleRobotMode(false, false);
+                player->toggleSpiderMode(false, false);
+                player->toggleSwingMode(false, false);
+                break;
+            case GameObjectType::ShipPortal:
+                player->toggleFlyMode(true, true);
+                break;
+            case GameObjectType::BallPortal:
+                player->toggleRollMode(true, true);
+                break;
+            case GameObjectType::UfoPortal:
+                player->toggleBirdMode(true, true);
+                break;
+            case GameObjectType::WavePortal:
+                player->toggleDartMode(true, true);
+                break;
+            case GameObjectType::RobotPortal:
+                player->toggleRobotMode(true, true);
+                break;
+            case GameObjectType::SpiderPortal:
+                player->toggleSpiderMode(true, true);
+                break;
+            case GameObjectType::SwingPortal:
+                player->toggleSwingMode(true, true);
+                break;
+            case GameObjectType::NormalGravityPortal:
+                this->flipGravity(player, false, true);
+                break;
+            case GameObjectType::InverseGravityPortal:
+                this->flipGravity(player, true, true);
+                break;
+            case GameObjectType::GravityTogglePortal:
+                this->flipGravity(player, !player->m_isUpsideDown, true);
+                break;
+            case GameObjectType::YellowJumpPad:
+            case GameObjectType::PinkJumpPad:
+            case GameObjectType::RedJumpPad:
+            case GameObjectType::SpiderPad:
+                player->bumpPlayer(getBumpMod(player, (int)obj->m_objectType),
+                    (int)obj->m_objectType, true, nullptr);
+                break;
+            default:
+                break;
+        }
+    }
+
+    void collisionCheckObjects(PlayerObject* p0, std::vector<GameObject*>* p1, int p2, float p3) {
+        if (!s_simulating || !p1) {
+            GJBaseGameLayer::collisionCheckObjects(p0, p1, p2, p3);
+            return;
+        }
+
+        // saat simulasi: filter hanya Solid/Hazard/Slope, sisanya handle manual (portal dll)
+        std::vector<GameObject*> solids;
+        for (auto obj : *p1) {
+            auto t = obj->m_objectType;
+            if (t == GameObjectType::Solid ||
+                t == GameObjectType::Hazard ||
+                t == GameObjectType::AnimatedHazard ||
+                t == GameObjectType::Slope) {
+                solids.push_back(obj);
+            } else {
+                customCollisionCheck(p0, obj);
+            }
+        }
+        int sz = (int)solids.size();
+        GJBaseGameLayer::collisionCheckObjects(p0, &solids, sz, p3);
+    }
+
     bool canBeActivatedByPlayer(PlayerObject* p0, EffectGameObject* p1) {
         if (s_simulating) return false;
         return GJBaseGameLayer::canBeActivatedByPlayer(p0, p1);
