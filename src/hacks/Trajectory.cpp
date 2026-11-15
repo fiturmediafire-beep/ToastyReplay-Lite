@@ -205,7 +205,15 @@ class $modify(TrajPlayLayer, PlayLayer) {
     void postUpdate(float dt) {
         PlayLayer::postUpdate(dt);
         if (!toasty::trajectory::enabled() || s_creating) return;
-        updateTrajectory(this, m_fields->ghost1, m_fields->ghost2);
+
+        // Update simulasi tiap 3 frame saja — hemat 3x, visual sama
+        static int s_frameSkip = 0;
+        if (++s_frameSkip < 3) {
+            // tetap gambar label timer dari data frame sebelumnya
+        } else {
+            s_frameSkip = 0;
+            updateTrajectory(this, m_fields->ghost1, m_fields->ghost2);
+        }
 
         // Gambar timer label di screen space untuk setiap impact point
         for (int idx = 0; idx < 2; idx++) {
