@@ -102,7 +102,7 @@ static void simulateOnce(GJBaseGameLayer* bgl, PlayerObject* ghost,
 
     // Delta besar = lebih sedikit iterasi, lebih jauh jangkauan, lebih ringan
     // 300 iter × 1/15s = 20 detik ke depan, beban 4x lebih ringan dari 1200×1/60
-    static constexpr int   ITERS    = 600;
+    static constexpr int   ITERS    = 1400;
     static constexpr float DELTA    = 1.f / 15.f;
 
     // warna: putih=release, kuning=hold
@@ -205,15 +205,7 @@ class $modify(TrajPlayLayer, PlayLayer) {
     void postUpdate(float dt) {
         PlayLayer::postUpdate(dt);
         if (!toasty::trajectory::enabled() || s_creating) return;
-
-        // Update simulasi tiap 3 frame saja — hemat 3x, visual sama
-        static int s_frameSkip = 0;
-        if (++s_frameSkip < 3) {
-            // tetap gambar label timer dari data frame sebelumnya
-        } else {
-            s_frameSkip = 0;
-            updateTrajectory(this, m_fields->ghost1, m_fields->ghost2);
-        }
+        updateTrajectory(this, m_fields->ghost1, m_fields->ghost2);
 
         // Gambar timer label di screen space untuk setiap impact point
         for (int idx = 0; idx < 2; idx++) {
