@@ -11,230 +11,149 @@
 
 using namespace geode::prelude;
 
-// ── state ────────────────────────────────────────────────────────────────────
+// ── state ─────────────────────────────────────────────────────────────────────
 namespace {
-    bool  s_enabled          = false;
-    bool  s_creating         = false;
-    bool  s_cancel           = false;
-    float s_delta            = 1.f / 60.f;
-    float s_deathRotation    = 0.f;
-    // ghost yang sedang disimulasi (untuk destroyPlayer)
-    PlayerObject* s_activeGhost = nullptr;
+    bool  s_enabled    = false;
+    bool  s_simulating = false;
 }
 
 namespace toasty::trajectory {
-    bool enabled()    { return s_enabled; }
-    void loadSaved()  { s_enabled = Mod::get()->getSavedValue<bool>("show-trajectory", false); }
+    bool enabled()   { return s_enabled; }
+    void loadSaved() { s_enabled = Mod::get()->getSavedValue<bool>("show-trajectory", false); }
     void setEnabled(bool on) {
         s_enabled = on;
         Mod::get()->setSavedValue<bool>("show-trajectory", on);
     }
 }
 
-// ── TrajectoryNode ────────────────────────────────────────────────────────────
-// Attach ke m_objectLayer, draw langsung di object-layer coordinates.
-// Tidak perlu konversi — CCDrawNode anak m_objectLayer = sama space.
+// ── TrajectoryNode ─────────────────────────────────────────────────────────────
 class TrajectoryNode : public CCDrawNode {
 public:
+    PlayerObject* m_ghost = nullptr;
+
     static TrajectoryNode* create() {
         auto* n = new TrajectoryNode();
         if (n && n->init()) { n->autorelease(); return n; }
         CC_SAFE_DELETE(n);
         return nullptr;
     }
+
+    bool isSimulating() { return s_simulating; }
+
+    void simulate(PlayerObject* plr, bool held) {
+        if (!plr || plr->m_isDead || !m_ghost) return;
+
+        // copy state
+        m_ghost->setPosition(plr->getPosition());
+        m_ghost->m_yVelocity        = plr->m_yVelocity;
+        m_ghost->m_isShip           = plr->m_isShip;
+        m_ghost->m_isBall           = plr->m_isBall;
+        m_ghost->m_isBird           = plr->m_isBird;
+        m_ghost->m_isDart           = plr->m_isDart;
+        m_ghost->m_isRobot          = plr->m_isRobot;
+        m_ghost->m_isSpider         = plr->m_isSpider;
+        m_ghost->m_isSwing          = plr->m_isSwing;
+        m_ghost->m_isUpsideDown     = plr->m_isUpsideDown;
+        m_ghost->m_isDead           = false;
+        m_ghost->m_maybeIsColliding = false;
+
+        m_ghost->releaseButton(PlayerButton::Jump);
+        if (held) m_ghost->pushButton(PlayerButton::Jump);
+
+        // sama persis qolmod: delta=0.5, iters=240
+        static constexpr float DELTA = 0.5f;
+        static constexpr int   ITERS = 240;
+
+        ccColor4F col = held
+            ? ccc4f(1.0f, 0.9f, 0.1f, 0.9f)
+            : ccc4f(1.0f, 1.0f, 1.0f, 0.9f);
+
+        auto* bgl = static_cast<GJBaseGameLayer*>(
+            CCDirector::sharedDirector()->getRunningScene()->getChildByType<PlayLayer>(0));
+        if (!bgl) return;
+
+        CCPoint prev = m_ghost->getPosition();
+        s_simulating = true;
+
+        for (int i = 0; i < ITERS; i++) {
+            m_ghost->m_collisionLogTop->removeAllObjects();
+            m_ghost->m_collisionLogBottom->removeAllObjects();
+            m_ghost->m_collisionLogLeft->removeAllObjects();
+            m_ghost->m_collisionLogRight->removeAllObjects();
+
+            // qolmod order: update → checkCollisions → updateRotation
+            m_ghost->update(DELTA);
+            bgl->checkCollisions(m_ghost, DELTA, false);
+            m_ghost->updateRotation(DELTA);
+
+            CCPoint cur = m_ghost->getPosition();
+
+            // fade di ujung
+            if (i >= ITERS - 30)
+                col.a = static_cast<float>(ITERS - i) / 30.f;
+
+            drawSegment(prev, cur, 1.f, col);
+            prev = cur;
+
+            if (m_ghost->m_isDead || m_ghost->m_maybeIsColliding)
+                break;
+        }
+
+        s_simulating = false;
+    }
+
+    void redraw(PlayerObject* plr) {
+        clear();
+        if (!s_enabled || !plr) return;
+        simulate(plr, false);
+        simulate(plr, true);
+    }
 };
 
 static TrajectoryNode* s_node = nullptr;
 
-static TrajectoryNode* getNode() {
-    if (!s_node) {
-        s_node = TrajectoryNode::create();
-        s_node->retain();
-        ccBlendFunc bf; bf.src = GL_SRC_ALPHA; bf.dst = GL_ONE_MINUS_SRC_ALPHA;
-        s_node->setBlendFunc(bf);
-    }
-    return s_node;
-}
-
-// ── simulation ────────────────────────────────────────────────────────────────
-static void copyState(PlayerObject* src, PlayerObject* dst) {
-    dst->setPosition(src->getPosition());
-    dst->m_yVelocity        = src->m_yVelocity;
-    dst->m_isShip           = src->m_isShip;
-    dst->m_isBall           = src->m_isBall;
-    dst->m_isBird           = src->m_isBird;
-    dst->m_isDart           = src->m_isDart;
-    dst->m_isRobot          = src->m_isRobot;
-    dst->m_isSpider         = src->m_isSpider;
-    dst->m_isSwing          = src->m_isSwing;
-    dst->m_isUpsideDown     = src->m_isUpsideDown;
-    dst->m_isDead           = false;
-    dst->m_maybeIsColliding = false;
-}
-
-// s_impactPos & s_impactSecs disimpan saat simulasi, digambar di redraw
-static CCPoint s_impactPos[2]  = {};
-static float   s_impactSecs[2] = {-1.f, -1.f};
-
-static void drawImpact(CCDrawNode* node, CCPoint pos, float secs, int idx) {
-    // simpan untuk timer label (digambar lewat CCLabelBMFont di PlayLayer node)
-    s_impactPos[idx]  = pos;
-    s_impactSecs[idx] = secs;
-
-    // kotak hitbox, bukan lingkaran
-    float half = 15.f;
-    CCPoint verts[4] = {
-        pos + CCPoint{-half, -half},
-        pos + CCPoint{ half, -half},
-        pos + CCPoint{ half,  half},
-        pos + CCPoint{-half,  half},
-    };
-    node->drawPolygon(verts, 4,
-        ccc4f(1.f, 0.15f, 0.15f, 0.25f),
-        1.5f, ccc4f(1.f, 0.15f, 0.15f, 0.9f));
-}
-
-static void simulateOnce(GJBaseGameLayer* bgl, PlayerObject* ghost,
-                          PlayerObject* real, bool held, int impactIdx) {
-    copyState(real, ghost);
-    ghost->releaseButton(PlayerButton::Jump);
-    if (held) ghost->pushButton(PlayerButton::Jump);
-
-    // Delta besar = lebih sedikit iterasi, lebih jauh jangkauan, lebih ringan
-    // 300 iter × 1/15s = 20 detik ke depan, beban 4x lebih ringan dari 1200×1/60
-    static constexpr int   ITERS    = 1400;
-    static constexpr float DELTA    = 1.f / 15.f;
-
-    // warna: putih=release, kuning=hold
-    ccColor4F col = held
-        ? ccc4f(1.0f, 0.9f, 0.1f, 0.9f)
-        : ccc4f(1.0f, 1.0f, 1.0f, 0.9f);
-
-    CCPoint prev = ghost->getPosition();
-    s_cancel = false;
-    s_activeGhost = ghost;
-
-    for (int i = 0; i < ITERS; i++) {
-        ghost->m_collisionLogTop->removeAllObjects();
-        ghost->m_collisionLogBottom->removeAllObjects();
-        ghost->m_collisionLogLeft->removeAllObjects();
-        ghost->m_collisionLogRight->removeAllObjects();
-
-        bgl->checkCollisions(ghost, DELTA, false);
-
-        if (s_cancel) {
-            float secs = static_cast<float>(i) * DELTA;
-            drawImpact(getNode(), ghost->getPosition(), secs, impactIdx);
-            break;
-        }
-
-        ghost->update(DELTA);
-        ghost->updateRotation(DELTA);
-
-        CCPoint cur = ghost->getPosition();
-
-        // fade alpha di ujung
-        if (i >= ITERS - 40)
-            col.a = static_cast<float>(ITERS - i) / 40.f;
-
-        // drawSegment = line tebal, pasti kelihatan, sama persis dengan xdBot
-        getNode()->drawSegment(prev, cur, 0.6f, col);
-
-        prev = cur;
-    }
-}
-
-static void updateTrajectory(PlayLayer* pl, PlayerObject* ghost1, PlayerObject* ghost2) {
-    if (!ghost1 || !ghost2) return;
-    s_creating = true;
-    s_impactSecs[0] = s_impactSecs[1] = -1.f;
-    getNode()->setVisible(true);
-    getNode()->clear();
-
-    simulateOnce(pl, ghost1, pl->m_player1, true,  0);
-    simulateOnce(pl, ghost2, pl->m_player1, false, 1);
-
-    s_creating = false;
-}
-
-// ── hooks ─────────────────────────────────────────────────────────────────────
-static CCLabelBMFont* getTimerLabel(CCNode* parent, int tag) {
-    auto* l = typeinfo_cast<CCLabelBMFont*>(parent->getChildByTag(tag));
-    if (!l) {
-        l = CCLabelBMFont::create("", "bigFont.fnt");
-        l->setScale(0.5f);
-        l->setTag(tag);
-        parent->addChild(l, 200);
-    }
-    return l;
-}
-
+// ── PlayLayer hooks ───────────────────────────────────────────────────────────
 class $modify(TrajPlayLayer, PlayLayer) {
     struct Fields {
-        PlayerObject* ghost1 = nullptr;
-        PlayerObject* ghost2 = nullptr;
+        PlayerObject* ghost = nullptr;
     };
 
-    // setupHasCompleted = setelah semua objek di-load, cocok untuk init ghost
     void setupHasCompleted() {
         PlayLayer::setupHasCompleted();
 
-        m_fields->ghost1 = nullptr;
-        m_fields->ghost2 = nullptr;
-        s_cancel = false;
-        s_creating = false;
-
         if (!toasty::trajectory::enabled()) return;
 
-        m_fields->ghost1 = PlayerObject::create(1, 1, this, this, true);
-        m_fields->ghost1->retain();
-        m_fields->ghost1->setPosition({0, 105});
-        m_fields->ghost1->setVisible(false);
-        m_objectLayer->addChild(m_fields->ghost1);
+        // buat ghost player
+        m_fields->ghost = PlayerObject::create(1, 1, this, this, true);
+        m_fields->ghost->retain();
+        m_fields->ghost->setPosition({0, 105});
+        m_fields->ghost->setVisible(false);
+        m_objectLayer->addChild(m_fields->ghost);
 
-        m_fields->ghost2 = PlayerObject::create(1, 1, this, this, true);
-        m_fields->ghost2->retain();
-        m_fields->ghost2->setPosition({0, 105});
-        m_fields->ghost2->setVisible(false);
-        m_objectLayer->addChild(m_fields->ghost2);
+        // buat draw node, attach ke m_objectLayer (sama space)
+        if (!s_node) {
+            s_node = TrajectoryNode::create();
+            s_node->retain();
+        }
+        s_node->m_ghost = m_fields->ghost;
+        s_node->clear();
 
-        m_objectLayer->addChild(getNode(), 500);
+        ccBlendFunc bf; bf.src = GL_SRC_ALPHA; bf.dst = GL_ONE_MINUS_SRC_ALPHA;
+        s_node->setBlendFunc(bf);
+
+        m_objectLayer->addChild(s_node, 500);
     }
 
-    // postUpdate = setelah physics, timing yang benar
     void postUpdate(float dt) {
         PlayLayer::postUpdate(dt);
-        if (!toasty::trajectory::enabled() || s_creating) return;
-        updateTrajectory(this, m_fields->ghost1, m_fields->ghost2);
-
-        // Gambar timer label di screen space untuk setiap impact point
-        for (int idx = 0; idx < 2; idx++) {
-            auto* lbl = getTimerLabel(this, 9900 + idx);
-            if (s_impactSecs[idx] < 0.f) {
-                lbl->setVisible(false);
-                continue;
-            }
-            // Konversi object-layer coords ke screen (UI) coords
-            CCPoint world = m_objectLayer->convertToWorldSpace(s_impactPos[idx]);
-            lbl->setPosition(world + CCPoint{0.f, 22.f});
-
-            float secs = s_impactSecs[idx];
-            ccColor3B col;
-            if (secs > 1.f)       col = ccc3(80, 255, 80);
-            else if (secs > 0.5f) col = ccc3(255, 220, 50);
-            else                  col = ccc3(255, 60, 60);
-
-            lbl->setString(fmt::format("{:.1f}s", secs).c_str());
-            lbl->setColor(col);
-            lbl->setVisible(true);
-        }
+        if (!toasty::trajectory::enabled() || s_simulating) return;
+        if (s_node) s_node->redraw(m_player1);
     }
 
     void destroyPlayer(PlayerObject* player, GameObject* obj) {
-        // jika ghost aktif yang mati, cancel simulasi ini saja
-        if (s_creating && player == s_activeGhost) {
-            s_deathRotation = player->getRotation();
-            s_cancel = true;
+        // qolmod: saat simulasi, cukup set m_isDead = true
+        if (s_simulating && player == s_node->m_ghost) {
+            player->m_isDead = true;
             return;
         }
         PlayLayer::destroyPlayer(player, obj);
@@ -244,74 +163,66 @@ class $modify(TrajPlayLayer, PlayLayer) {
         if (s_node) {
             s_node->removeFromParentAndCleanup(false);
             s_node->clear();
+            s_node->m_ghost = nullptr;
         }
-        s_cancel = false;
-        s_creating = false;
-        s_impactSecs[0] = s_impactSecs[1] = -1.f;
-        m_fields->ghost1 = nullptr;
-        m_fields->ghost2 = nullptr;
+        m_fields->ghost = nullptr;
         PlayLayer::onQuit();
     }
 
     void playEndAnimationToPos(CCPoint p0) {
-        if (!s_creating)
-            PlayLayer::playEndAnimationToPos(p0);
+        if (!s_simulating) PlayLayer::playEndAnimationToPos(p0);
     }
 };
 
-// Blokir side effects selama simulasi
+// ── GJBaseGameLayer hooks ─────────────────────────────────────────────────────
 class $modify(TrajBGL, GJBaseGameLayer) {
     bool canBeActivatedByPlayer(PlayerObject* p0, EffectGameObject* p1) {
-        if (s_creating) return false;
+        if (s_simulating) return false;
         return GJBaseGameLayer::canBeActivatedByPlayer(p0, p1);
     }
     void playerTouchedRing(PlayerObject* p0, RingObject* p1) {
-        if (!s_creating) GJBaseGameLayer::playerTouchedRing(p0, p1);
+        if (!s_simulating) GJBaseGameLayer::playerTouchedRing(p0, p1);
     }
     void playerTouchedTrigger(PlayerObject* p0, EffectGameObject* p1) {
-        if (!s_creating) GJBaseGameLayer::playerTouchedTrigger(p0, p1);
+        if (!s_simulating) GJBaseGameLayer::playerTouchedTrigger(p0, p1);
     }
     void activateSFXTrigger(SFXTriggerGameObject* p0) {
-        if (!s_creating) GJBaseGameLayer::activateSFXTrigger(p0);
+        if (!s_simulating) GJBaseGameLayer::activateSFXTrigger(p0);
     }
     void activateSongEditTrigger(SongTriggerGameObject* p0) {
-        if (!s_creating) GJBaseGameLayer::activateSongEditTrigger(p0);
+        if (!s_simulating) GJBaseGameLayer::activateSongEditTrigger(p0);
     }
     void gameEventTriggered(GJGameEvent p0, int p1, int p2) {
-        if (!s_creating) GJBaseGameLayer::gameEventTriggered(p0, p1, p2);
+        if (!s_simulating) GJBaseGameLayer::gameEventTriggered(p0, p1, p2);
     }
 };
 
 class $modify(TrajPlayerObject, PlayerObject) {
-    void update(float dt) {
-        PlayerObject::update(dt);
-        s_delta = dt;
-    }
     void playSpiderDashEffect(CCPoint p0, CCPoint p1) {
-        if (!s_creating) PlayerObject::playSpiderDashEffect(p0, p1);
+        if (!s_simulating) PlayerObject::playSpiderDashEffect(p0, p1);
     }
     void incrementJumps() {
-        if (!s_creating) PlayerObject::incrementJumps();
+        if (!s_simulating) PlayerObject::incrementJumps();
     }
     void ringJump(RingObject* p0, bool p1) {
-        if (!s_creating) PlayerObject::ringJump(p0, p1);
+        if (!s_simulating) PlayerObject::ringJump(p0, p1);
     }
 };
 
 class $modify(TrajHardStreak, HardStreak) {
     void addPoint(CCPoint p0) {
-        if (!s_creating) HardStreak::addPoint(p0);
+        if (!s_simulating) HardStreak::addPoint(p0);
     }
 };
 
 class $modify(TrajGameObject, GameObject) {
     void playShineEffect() {
-        if (!s_creating) GameObject::playShineEffect();
+        if (!s_simulating) GameObject::playShineEffect();
     }
 };
 
 class $modify(TrajEffectGameObject, EffectGameObject) {
     void triggerObject(GJBaseGameLayer* p0, int p1, const std::vector<int>* p2) {
-        if (!s_creating) EffectGameObject::triggerObject(p0, p1, p2);
+        if (!s_simulating) EffectGameObject::triggerObject(p0, p1, p2);
     }
 };
