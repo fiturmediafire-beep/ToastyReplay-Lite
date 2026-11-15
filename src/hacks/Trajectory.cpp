@@ -71,19 +71,31 @@ public:
     void simulate(GJBaseGameLayer* bgl, PlayerObject* plr, bool held) {
         if (!plr || plr->m_isDead || !m_ghost) return;
 
-        // copy state
+        // copy state lengkap seperti qolmod PlayerState
         m_ghost->setPosition(plr->getPosition());
-        m_ghost->m_yVelocity        = plr->m_yVelocity;
-        m_ghost->m_isShip           = plr->m_isShip;
-        m_ghost->m_isBall           = plr->m_isBall;
-        m_ghost->m_isBird           = plr->m_isBird;
-        m_ghost->m_isDart           = plr->m_isDart;
-        m_ghost->m_isRobot          = plr->m_isRobot;
-        m_ghost->m_isSpider         = plr->m_isSpider;
-        m_ghost->m_isSwing          = plr->m_isSwing;
-        m_ghost->m_isUpsideDown     = plr->m_isUpsideDown;
-        m_ghost->m_isDead           = false;
-        m_ghost->m_maybeIsColliding = false;
+        m_ghost->setRotation(plr->getRotation());
+        m_ghost->m_yVelocity          = plr->m_yVelocity;
+        m_ghost->m_xVelocity          = plr->m_xVelocity;
+        m_ghost->m_isShip             = plr->m_isShip;
+        m_ghost->m_isBall             = plr->m_isBall;
+        m_ghost->m_isBird             = plr->m_isBird;
+        m_ghost->m_isDart             = plr->m_isDart;
+        m_ghost->m_isRobot            = plr->m_isRobot;
+        m_ghost->m_isSpider           = plr->m_isSpider;
+        m_ghost->m_isSwing            = plr->m_isSwing;
+        m_ghost->m_isUpsideDown       = plr->m_isUpsideDown;
+        m_ghost->m_isOnGround         = plr->m_isOnGround;
+        m_ghost->m_wasOnGround        = plr->m_wasOnGround;
+        m_ghost->m_isOnGround2        = plr->m_isOnGround2;
+        m_ghost->m_isDead             = false;
+        m_ghost->m_maybeIsColliding   = false;
+        m_ghost->m_jumpBuffered       = plr->m_jumpBuffered;
+        m_ghost->m_playerSpeed        = plr->m_playerSpeed;
+        m_ghost->m_gravityMod         = plr->m_gravityMod;
+        // copy button state dulu, baru override dengan held
+        m_ghost->m_holdingButtons[0]  = plr->m_holdingButtons[0];
+        m_ghost->m_holdingButtons[1]  = plr->m_holdingButtons[1];
+        m_ghost->m_holdingButtons[2]  = plr->m_holdingButtons[2];
 
         m_ghost->releaseButton(PlayerButton::Jump);
         if (held) m_ghost->pushButton(PlayerButton::Jump);
@@ -91,9 +103,10 @@ public:
         static constexpr float DELTA = 0.5f;
         static constexpr int   ITERS = 240;
 
+        // hold = biru terang, release = biru gelap
         ccColor4F col = held
-            ? ccc4f(1.0f, 0.9f, 0.1f, 0.9f)
-            : ccc4f(1.0f, 1.0f, 1.0f, 0.9f);
+            ? ccc4f(0.3f, 0.7f, 1.0f, 0.9f)
+            : ccc4f(0.1f, 0.3f, 0.7f, 0.9f);
 
         CCPoint prev = m_ghost->getPosition();
         s_simulating = true;
