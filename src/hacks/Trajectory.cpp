@@ -75,7 +75,6 @@ public:
         m_ghost->setPosition(plr->getPosition());
         m_ghost->setRotation(plr->getRotation());
         m_ghost->m_yVelocity          = plr->m_yVelocity;
-        m_ghost->m_xVelocity          = plr->m_xVelocity;
         m_ghost->m_isShip             = plr->m_isShip;
         m_ghost->m_isBall             = plr->m_isBall;
         m_ghost->m_isBird             = plr->m_isBird;
@@ -85,7 +84,6 @@ public:
         m_ghost->m_isSwing            = plr->m_isSwing;
         m_ghost->m_isUpsideDown       = plr->m_isUpsideDown;
         m_ghost->m_isOnGround         = plr->m_isOnGround;
-        m_ghost->m_wasOnGround        = plr->m_wasOnGround;
         m_ghost->m_isOnGround2        = plr->m_isOnGround2;
         m_ghost->m_isDead             = false;
         m_ghost->m_maybeIsColliding   = false;
