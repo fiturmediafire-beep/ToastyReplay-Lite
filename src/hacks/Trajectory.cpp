@@ -102,7 +102,7 @@ static void simulateOnce(GJBaseGameLayer* bgl, PlayerObject* ghost,
 
     // Delta besar = lebih sedikit iterasi, lebih jauh jangkauan, lebih ringan
     // 300 iter × 1/15s = 20 detik ke depan, beban 4x lebih ringan dari 1200×1/60
-    static constexpr int   ITERS    = 300;
+    static constexpr int   ITERS    = 600;
     static constexpr float DELTA    = 1.f / 15.f;
 
     // warna: putih=release, kuning=hold
