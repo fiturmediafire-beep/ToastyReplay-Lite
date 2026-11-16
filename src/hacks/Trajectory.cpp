@@ -68,7 +68,7 @@ public:
             ccc4f(1.f, 0.5f, 0.5f, 0.9f));
     }
 
-    void simulate(GJBaseGameLayer* bgl, PlayerObject* plr, bool held) {
+    void simulateWithBrightness(GJBaseGameLayer* bgl, PlayerObject* plr, bool held, bool bright) {
         if (!plr || plr->m_isDead || !m_ghost) return;
 
         // copy state lengkap seperti qolmod PlayerState
@@ -101,10 +101,10 @@ public:
         static constexpr float DELTA = 0.5f;
         static constexpr int   ITERS = 240;
 
-        // hold = biru terang (tujuan lompat), release = biru gelap (tujuan jatuh)
-        ccColor4F col = held
-            ? ccc4f(0.3f, 0.7f, 1.0f, 0.9f)
-            : ccc4f(0.1f, 0.3f, 0.7f, 0.9f);
+        // bright = arc yang aktif (sesuai tombol), gelap = arc yang tidak aktif
+        ccColor4F col = bright
+            ? ccc4f(0.3f, 0.7f, 1.0f, 0.9f)   // biru terang
+            : ccc4f(0.1f, 0.3f, 0.7f, 0.9f);  // biru gelap
 
         CCPoint prev = m_ghost->getPosition();
         s_simulating = true;
@@ -141,8 +141,10 @@ public:
     void redraw(GJBaseGameLayer* bgl, PlayerObject* plr) {
         clear();
         if (!s_enabled || !plr) return;
-        simulate(bgl, plr, false);
-        simulate(bgl, plr, true);
+        bool pressing = plr->m_holdingButtons[0];
+        // arc yang sesuai tombol ditekan = terang, yang lain = gelap
+        simulateWithBrightness(bgl, plr, false, !pressing); // release: terang kalau tidak ditekan
+        simulateWithBrightness(bgl, plr, true,  pressing);  // hold:    terang kalau ditekan
     }
 };
 
