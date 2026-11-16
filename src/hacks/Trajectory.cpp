@@ -154,6 +154,17 @@ public:
 static TrajectoryNode* s_node = nullptr;
 
 // ── PlayLayer hooks ───────────────────────────────────────────────────────────
+// intercept destroyPlayer di GJBaseGameLayer level supaya jalan sebelum engine hook di PlayLayer
+class $modify(TrajBGLDestroy, GJBaseGameLayer) {
+    void destroyPlayer(PlayerObject* player, GameObject* obj) {
+        if (s_simulating && s_node && player == s_node->m_ghost) {
+            player->m_isDead = true;
+            return;
+        }
+        GJBaseGameLayer::destroyPlayer(player, obj);
+    }
+};
+
 class $modify(TrajPlayLayer, PlayLayer) {
     struct Fields {
         PlayerObject* ghost = nullptr;
@@ -203,14 +214,6 @@ class $modify(TrajPlayLayer, PlayLayer) {
             m_objectLayer->addChild(s_node, 500);
         }
         if (s_node) s_node->redraw(this, m_player1);
-    }
-
-    void destroyPlayer(PlayerObject* player, GameObject* obj) {
-        if (s_simulating && s_node && player == s_node->m_ghost) {
-            player->m_isDead = true;
-            return;
-        }
-        PlayLayer::destroyPlayer(player, obj);
     }
 
     void onQuit() {
