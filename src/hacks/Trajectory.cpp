@@ -141,7 +141,7 @@ public:
     void redraw(GJBaseGameLayer* bgl, PlayerObject* plr) {
         clear();
         if (!s_enabled || !plr) return;
-        bool pressing = plr->m_holdingButtons[0];
+        bool pressing = plr->m_holdingButtons[(int)PlayerButton::Jump];
         // arc yang sesuai tombol ditekan = terang, yang lain = gelap
         simulateWithBrightness(bgl, plr, false, !pressing); // release: terang kalau tidak ditekan
         simulateWithBrightness(bgl, plr, true,  pressing);  // hold:    terang kalau ditekan
