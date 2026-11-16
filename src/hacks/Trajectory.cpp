@@ -86,6 +86,8 @@ public:
         m_ghost->m_isUpsideDown       = plr->m_isUpsideDown;
         m_ghost->m_isOnGround         = plr->m_isOnGround;
         m_ghost->m_isOnGround2        = plr->m_isOnGround2;
+        m_ghost->m_isLittlefoot       = plr->m_isLittlefoot;
+        m_ghost->m_vehicleSize        = plr->m_vehicleSize;
         m_ghost->m_isDead             = false;
         m_ghost->m_maybeIsColliding   = false;
         m_ghost->m_jumpBuffered       = plr->m_jumpBuffered;
