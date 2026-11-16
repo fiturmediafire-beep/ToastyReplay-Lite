@@ -136,6 +136,9 @@ public:
         }
 
         s_simulating = false;
+        // reset ghost state supaya engine tidak deteksi ghost sebagai player mati
+        m_ghost->m_isDead = false;
+        m_ghost->m_maybeIsColliding = false;
     }
 
     void redraw(GJBaseGameLayer* bgl, PlayerObject* plr) {
@@ -172,18 +175,19 @@ class $modify(TrajPlayLayer, PlayLayer) {
             m_fields->ghost = nullptr;
         }
 
-        // pakai false supaya ghost tidak terdaftar sebagai m_player2 (engine inject input ke player2)
+        // pakai false supaya ghost tidak terdaftar sebagai m_player2
         m_fields->ghost = PlayerObject::create(1, 1, this, this, false);
         m_fields->ghost->retain();
-        m_fields->ghost->setPosition({0, 105});
+        m_fields->ghost->setPosition({-99999, -99999});
         m_fields->ghost->setVisible(false);
-        // jangan addChild ke objectLayer — ghost hanya untuk simulasi, tidak perlu render
-        // tambahkan ke node dummy supaya tidak di-GC tapi juga tidak dideteksi engine
-        this->addChild(m_fields->ghost);
+        // tambahkan ke s_node (CCDrawNode) bukan PlayLayer — jauh dari jangkauan engine
+        // s_node dibuat setelah ini, jadi addChild dilakukan di bawah
 
         s_node = TrajectoryNode::create();
         s_node->retain();
         s_node->m_ghost = m_fields->ghost;
+        // ghost di-parent ke s_node — jauh dari PlayLayer, engine tidak akan iterasi
+        s_node->addChild(m_fields->ghost);
 
         ccBlendFunc bf; bf.src = GL_SRC_ALPHA; bf.dst = GL_ONE_MINUS_SRC_ALPHA;
         s_node->setBlendFunc(bf);
@@ -230,6 +234,11 @@ class $modify(TrajPlayLayer, PlayLayer) {
 // ── GJBaseGameLayer hooks ─────────────────────────────────────────────────────
 // Port dari qolmod: collisionCheckObjects handle portal saat simulasi
 class $modify(TrajBGL, GJBaseGameLayer) {
+
+    void processCommands(float dt, bool isHalfTick, bool isLastTick) {
+        if (s_simulating) return;
+        GJBaseGameLayer::processCommands(dt, isHalfTick, isLastTick);
+    }
 
     // port qolmod customCollisionCheck — handle portal & orb saat simulasi
     void customCollisionCheck(PlayerObject* player, GameObject* obj) {
