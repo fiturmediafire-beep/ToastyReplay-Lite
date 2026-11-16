@@ -15,6 +15,7 @@ using namespace geode::prelude;
 namespace {
     bool  s_enabled    = false;
     bool  s_simulating = false;
+    bool  s_ghostDying = false;  // true saat kita handle ghost mati, bukan player asli
 }
 
 namespace toasty::trajectory {
@@ -129,14 +130,15 @@ public:
             drawSegment(prev, cur, 1.f, col);
             prev = cur;
 
-            if (m_ghost->m_isDead || m_ghost->m_maybeIsColliding) {
+            if (s_ghostDying || m_ghost->m_isDead || m_ghost->m_maybeIsColliding) {
                 drawImpactHitbox(m_ghost);
+                s_ghostDying = false;
                 break;
             }
         }
 
         s_simulating = false;
-        // reset ghost state supaya engine tidak deteksi ghost sebagai player mati
+        s_ghostDying = false;
         m_ghost->m_isDead = false;
         m_ghost->m_maybeIsColliding = false;
     }
@@ -154,17 +156,6 @@ public:
 static TrajectoryNode* s_node = nullptr;
 
 // ── PlayLayer hooks ───────────────────────────────────────────────────────────
-// intercept destroyPlayer di GJBaseGameLayer level supaya jalan sebelum engine hook di PlayLayer
-class $modify(TrajBGLDestroy, GJBaseGameLayer) {
-    void destroyPlayer(PlayerObject* player, GameObject* obj) {
-        if (s_simulating && s_node && player == s_node->m_ghost) {
-            player->m_isDead = true;
-            return;
-        }
-        GJBaseGameLayer::destroyPlayer(player, obj);
-    }
-};
-
 class $modify(TrajPlayLayer, PlayLayer) {
     struct Fields {
         PlayerObject* ghost = nullptr;
@@ -214,6 +205,16 @@ class $modify(TrajPlayLayer, PlayLayer) {
             m_objectLayer->addChild(s_node, 500);
         }
         if (s_node) s_node->redraw(this, m_player1);
+    }
+
+    void destroyPlayer(PlayerObject* player, GameObject* obj) {
+        if (s_simulating && s_node && player == s_node->m_ghost) {
+            // JANGAN set m_isDead di sini — engine hook setelah kita akan cek m_isDead
+            // dan stop playback kalau true. Tandai lewat flag terpisah.
+            s_ghostDying = true;
+            return;
+        }
+        PlayLayer::destroyPlayer(player, obj);
     }
 
     void onQuit() {
