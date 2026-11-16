@@ -172,11 +172,14 @@ class $modify(TrajPlayLayer, PlayLayer) {
             m_fields->ghost = nullptr;
         }
 
-        m_fields->ghost = PlayerObject::create(1, 1, this, this, true);
+        // pakai false supaya ghost tidak terdaftar sebagai m_player2 (engine inject input ke player2)
+        m_fields->ghost = PlayerObject::create(1, 1, this, this, false);
         m_fields->ghost->retain();
         m_fields->ghost->setPosition({0, 105});
         m_fields->ghost->setVisible(false);
-        m_objectLayer->addChild(m_fields->ghost);
+        // jangan addChild ke objectLayer — ghost hanya untuk simulasi, tidak perlu render
+        // tambahkan ke node dummy supaya tidak di-GC tapi juga tidak dideteksi engine
+        this->addChild(m_fields->ghost);
 
         s_node = TrajectoryNode::create();
         s_node->retain();
