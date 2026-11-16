@@ -161,18 +161,26 @@ class $modify(TrajPlayLayer, PlayLayer) {
 
         if (!toasty::trajectory::enabled()) return;
 
+        // cleanup lama dulu kalau ada
+        if (s_node) {
+            s_node->removeFromParentAndCleanup(true);
+            s_node->release();
+            s_node = nullptr;
+        }
+        if (m_fields->ghost) {
+            m_fields->ghost->release();
+            m_fields->ghost = nullptr;
+        }
+
         m_fields->ghost = PlayerObject::create(1, 1, this, this, true);
         m_fields->ghost->retain();
         m_fields->ghost->setPosition({0, 105});
         m_fields->ghost->setVisible(false);
         m_objectLayer->addChild(m_fields->ghost);
 
-        if (!s_node) {
-            s_node = TrajectoryNode::create();
-            s_node->retain();
-        }
+        s_node = TrajectoryNode::create();
+        s_node->retain();
         s_node->m_ghost = m_fields->ghost;
-        s_node->clear();
 
         ccBlendFunc bf; bf.src = GL_SRC_ALPHA; bf.dst = GL_ONE_MINUS_SRC_ALPHA;
         s_node->setBlendFunc(bf);
@@ -182,6 +190,11 @@ class $modify(TrajPlayLayer, PlayLayer) {
     void postUpdate(float dt) {
         PlayLayer::postUpdate(dt);
         if (!toasty::trajectory::enabled() || s_simulating) return;
+        // pastikan s_node selalu ada di objectLayer (bisa hilang setelah resetLevel/record)
+        if (s_node && s_node->getParent() != m_objectLayer) {
+            if (s_node->getParent()) s_node->removeFromParent();
+            m_objectLayer->addChild(s_node, 500);
+        }
         if (s_node) s_node->redraw(this, m_player1);
     }
 
@@ -195,11 +208,14 @@ class $modify(TrajPlayLayer, PlayLayer) {
 
     void onQuit() {
         if (s_node) {
-            s_node->removeFromParentAndCleanup(false);
-            s_node->clear();
-            s_node->m_ghost = nullptr;
+            s_node->removeFromParentAndCleanup(true);
+            s_node->release();
+            s_node = nullptr;
         }
-        m_fields->ghost = nullptr;
+        if (m_fields->ghost) {
+            m_fields->ghost->release();
+            m_fields->ghost = nullptr;
+        }
         PlayLayer::onQuit();
     }
 
