@@ -101,7 +101,7 @@ public:
         static constexpr float DELTA = 0.5f;
         static constexpr int   ITERS = 240;
 
-        // hold = biru terang, release = biru gelap
+        // hold = biru terang (tujuan lompat), release = biru gelap (tujuan jatuh)
         ccColor4F col = held
             ? ccc4f(0.3f, 0.7f, 1.0f, 0.9f)
             : ccc4f(0.1f, 0.3f, 0.7f, 0.9f);
