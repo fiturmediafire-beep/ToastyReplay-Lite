@@ -72,6 +72,8 @@ public:
     void simulateWithBrightness(GJBaseGameLayer* bgl, PlayerObject* plr, bool held, bool bright) {
         if (!plr || plr->m_isDead || !m_ghost) return;
 
+        s_simulating = true;  // set dulu sebelum copy state supaya side effects diblok
+
         // copy state lengkap seperti qolmod PlayerState
         m_ghost->setPosition(plr->getPosition());
         m_ghost->setRotation(plr->getRotation());
@@ -86,8 +88,12 @@ public:
         m_ghost->m_isUpsideDown       = plr->m_isUpsideDown;
         m_ghost->m_isOnGround         = plr->m_isOnGround;
         m_ghost->m_isOnGround2        = plr->m_isOnGround2;
-        m_ghost->m_isLittlefoot       = plr->m_isLittlefoot;
         m_ghost->m_vehicleSize        = plr->m_vehicleSize;
+        m_ghost->m_stateScale         = plr->m_stateScale;
+        // sync mini mode secara proper lewat togglePlayerScale
+        // m_vehicleSize < 1.0 artinya player sedang mini
+        bool isMini = (plr->m_vehicleSize < 0.9f);
+        m_ghost->togglePlayerScale(isMini, true);
         m_ghost->m_isDead             = false;
         m_ghost->m_maybeIsColliding   = false;
         m_ghost->m_jumpBuffered       = plr->m_jumpBuffered;
@@ -110,7 +116,6 @@ public:
             : ccc4f(0.1f, 0.3f, 0.7f, 0.9f);  // biru gelap
 
         CCPoint prev = m_ghost->getPosition();
-        s_simulating = true;
 
         for (int i = 0; i < ITERS; i++) {
             m_ghost->m_collisionLogTop->removeAllObjects();
