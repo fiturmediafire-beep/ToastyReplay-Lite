@@ -41,63 +41,31 @@ public:
 
     bool isSimulating() { return s_simulating; }
 
-    // gambar hitbox saat impact — kotak untuk cube/ship/dll, diamond untuk wave
+    // gambar hitbox impact — kotak centered di posisi ghost, skala ikut vehicleSize
     void drawImpactHitbox(PlayerObject* plr) {
-        CCPoint center = plr->getPosition();
+        CCPoint c = plr->getPosition();
+        float sz = 15.f * plr->m_vehicleSize;
 
-        if (plr->m_isDart) {
-            // wave hitbox = diamond (rotated 45°)
-            // ukuran wave: outer ~9*vehicleSize, inner ~4*vehicleSize
-            float outer = 4.f * plr->m_vehicleSize;
-            float inner = 2.f * plr->m_vehicleSize;
+        CCPoint verts[4] = {
+            ccp(c.x - sz, c.y - sz),
+            ccp(c.x + sz, c.y - sz),
+            ccp(c.x + sz, c.y + sz),
+            ccp(c.x - sz, c.y + sz),
+        };
+        drawPolygon(verts, 4,
+            ccc4f(1.f, 0.15f, 0.15f, 0.25f), 1.5f,
+            ccc4f(1.f, 0.15f, 0.15f, 0.9f));
 
-            CCPoint diamond[4] = {
-                ccp(center.x,         center.y + outer),  // top
-                ccp(center.x + outer, center.y),           // right
-                ccp(center.x,         center.y - outer),  // bottom
-                ccp(center.x - outer, center.y),           // left
-            };
-            drawPolygon(diamond, 4,
-                ccc4f(1.f, 0.15f, 0.15f, 0.25f),
-                1.5f,
-                ccc4f(1.f, 0.15f, 0.15f, 0.9f));
-
-            CCPoint diamond2[4] = {
-                ccp(center.x,         center.y + inner),
-                ccp(center.x + inner, center.y),
-                ccp(center.x,         center.y - inner),
-                ccp(center.x - inner, center.y),
-            };
-            drawPolygon(diamond2, 4,
-                ccc4f(1.f, 0.15f, 0.15f, 0.1f),
-                1.f,
-                ccc4f(1.f, 0.5f, 0.5f, 0.9f));
-        } else {
-            // non-wave: kotak biasa
-            auto rect = plr->getObjectRect(plr->m_vehicleSize, plr->m_vehicleSize);
-            CCPoint verts[4] = {
-                ccp(rect.getMinX(), rect.getMinY()),
-                ccp(rect.getMaxX(), rect.getMinY()),
-                ccp(rect.getMaxX(), rect.getMaxY()),
-                ccp(rect.getMinX(), rect.getMaxY()),
-            };
-            drawPolygon(verts, 4,
-                ccc4f(1.f, 0.15f, 0.15f, 0.25f),
-                1.5f,
-                ccc4f(1.f, 0.15f, 0.15f, 0.9f));
-
-            auto rect2 = plr->getObjectRect(0.3f, 0.3f);
-            CCPoint verts2[4] = {
-                ccp(rect2.getMinX(), rect2.getMinY()),
-                ccp(rect2.getMaxX(), rect2.getMinY()),
-                ccp(rect2.getMaxX(), rect2.getMaxY()),
-                ccp(rect2.getMinX(), rect2.getMaxY()),
-            };
-            drawPolygon(verts2, 4,
-                ccc4f(1.f, 0.15f, 0.15f, 0.1f),
-                1.f,
-                ccc4f(1.f, 0.5f, 0.5f, 0.9f));
-        }
+        float sz2 = sz * 0.3f;
+        CCPoint verts2[4] = {
+            ccp(c.x - sz2, c.y - sz2),
+            ccp(c.x + sz2, c.y - sz2),
+            ccp(c.x + sz2, c.y + sz2),
+            ccp(c.x - sz2, c.y + sz2),
+        };
+        drawPolygon(verts2, 4,
+            ccc4f(1.f, 0.15f, 0.15f, 0.1f), 1.f,
+            ccc4f(1.f, 0.5f, 0.5f, 0.9f));
     }
 
     void simulateWithBrightness(GJBaseGameLayer* bgl, PlayerObject* plr, bool held, bool bright) {
@@ -105,21 +73,10 @@ public:
 
         s_simulating = true;  // set dulu sebelum copy state supaya side effects diblok
 
-        // posisi dan velocity dulu sebelum togglePlayerScale
+        // copy semua state dari player asli
         m_ghost->setPosition(plr->getPosition());
         m_ghost->setRotation(plr->getRotation());
         m_ghost->m_yVelocity          = plr->m_yVelocity;
-        m_ghost->m_isOnGround         = plr->m_isOnGround;
-        m_ghost->m_isOnGround2        = plr->m_isOnGround2;
-        // sync mini mode dulu lewat togglePlayerScale
-        // m_vehicleSize < 0.9 artinya player sedang mini
-        bool isMini = (plr->m_vehicleSize < 0.9f);
-        m_ghost->togglePlayerScale(isMini, true);
-
-        // copy ulang semua state SETELAH togglePlayerScale
-        // karena togglePlayerScale bisa reset beberapa field internal
-        m_ghost->m_vehicleSize        = plr->m_vehicleSize;
-        m_ghost->m_stateScale         = plr->m_stateScale;
         m_ghost->m_isShip             = plr->m_isShip;
         m_ghost->m_isBall             = plr->m_isBall;
         m_ghost->m_isBird             = plr->m_isBird;
@@ -128,6 +85,10 @@ public:
         m_ghost->m_isSpider           = plr->m_isSpider;
         m_ghost->m_isSwing            = plr->m_isSwing;
         m_ghost->m_isUpsideDown       = plr->m_isUpsideDown;
+        m_ghost->m_isOnGround         = plr->m_isOnGround;
+        m_ghost->m_isOnGround2        = plr->m_isOnGround2;
+        m_ghost->m_vehicleSize        = plr->m_vehicleSize;
+        m_ghost->m_stateScale         = plr->m_stateScale;
         m_ghost->m_isDead             = false;
         m_ghost->m_maybeIsColliding   = false;
         m_ghost->m_jumpBuffered       = plr->m_jumpBuffered;
