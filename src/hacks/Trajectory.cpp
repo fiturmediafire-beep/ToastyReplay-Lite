@@ -76,6 +76,8 @@ public:
         // copy semua state dari player asli
         m_ghost->setPosition(plr->getPosition());
         m_ghost->setRotation(plr->getRotation());
+        m_ghost->setScaleX(plr->getScaleX());
+        m_ghost->setScaleY(plr->getScaleY());
         m_ghost->m_yVelocity          = plr->m_yVelocity;
         m_ghost->m_isShip             = plr->m_isShip;
         m_ghost->m_isBall             = plr->m_isBall;
@@ -86,9 +88,13 @@ public:
         m_ghost->m_isSwing            = plr->m_isSwing;
         m_ghost->m_isUpsideDown       = plr->m_isUpsideDown;
         m_ghost->m_isOnGround         = plr->m_isOnGround;
-        m_ghost->m_isOnGround2        = plr->m_isOnGround2;
+        m_ghost->m_isOnGround2        = plr->m_isOnGround;
         m_ghost->m_vehicleSize        = plr->m_vehicleSize;
         m_ghost->m_stateScale         = plr->m_stateScale;
+        m_ghost->m_scaleXRelated2     = plr->m_scaleXRelated2;
+        m_ghost->m_scaleXRelated3     = plr->m_scaleXRelated3;
+        m_ghost->m_scaleXRelated4     = plr->m_scaleXRelated4;
+        m_ghost->m_scaleXRelated5     = plr->m_scaleXRelated5;
         m_ghost->m_isDead             = false;
         m_ghost->m_maybeIsColliding   = false;
         m_ghost->m_jumpBuffered       = plr->m_jumpBuffered;
