@@ -780,7 +780,7 @@ ToastyMenu::makeRow(ZStringView title, float height, float titleWidth, bool enab
     bg->setPosition({ROW_W / 2.f, height / 2.f});
     row.node->addChild(bg);
 
-    auto label = Label::create(toasty::i18n::tr(title), "bigFont.fnt");
+auto label = Label::create(std::string(toasty::i18n::tr(title)), "bigFont.fnt");
     label->setAnchorPoint({0.f, .5f});
     label->setPosition({10.f, height / 2.f});
     label->setLimitLabelWidth(titleWidth, .45f, .1f);
