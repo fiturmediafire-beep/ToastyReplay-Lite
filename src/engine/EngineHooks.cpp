@@ -263,10 +263,17 @@ class $modify(ToastyReplayGameLayer, GJBaseGameLayer) {
             if (session->playbackHold) {
                 return;
             }
-            auto& replay = *session->playback;
-            while (session->nextFix < replay.frameFixes.size() &&
-                   replay.frameFixes[session->nextFix].afterTick <= session->tick) {
-                applyFix(layer, replay.frameFixes[session->nextFix++]);
+          auto& replay = *session->playback;
+            if (toasty::ignoreinputs::enabled()) {
+                while (session->nextFix < replay.frameFixes.size() &&
+                       replay.frameFixes[session->nextFix].afterTick <= session->tick) {
+                    applyFix(layer, replay.frameFixes[session->nextFix++]);
+                }
+            } else {
+                while (session->nextFix < replay.frameFixes.size() &&
+                       replay.frameFixes[session->nextFix].afterTick <= session->tick) {
+                    session->nextFix++;
+                }
             }
             session->tick++;
             if (session->tick >= replay.tickCount) {
