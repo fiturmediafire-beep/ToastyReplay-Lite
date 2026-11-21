@@ -4,6 +4,7 @@
 #include "../replay/TtrlCodec.hpp"
 #include "../timing/FrameStepper.hpp"
 #include "../ui/Notifications.hpp"
+#include "../hacks/IgnoreInputs.hpp"
 
 #include <Geode/Geode.hpp>
 #include <Geode/binding/CheckpointObject.hpp>
@@ -159,10 +160,13 @@ namespace {
 class $modify(ToastyReplayGameLayer, GJBaseGameLayer) {
     void handleButton(bool down, int button, bool isPlayer1) {
         auto session = toasty::engine::activeSession();
-        if (session && session->mode == Mode::Play && !session->resetting &&
+         if (session && session->mode == Mode::Play && !session->resetting &&
             !session->acceptingPlaybackInput) {
+            if (!toasty::ignoreinputs::enabled()) {
+                GJBaseGameLayer::handleButton(down, button, isPlayer1);
+            }
             return;
-        }
+}
         if (session && session->mode == Mode::Record && !session->resetting &&
             button >= static_cast<int>(InputButton::Jump) &&
             button <= static_cast<int>(InputButton::Right)) {
