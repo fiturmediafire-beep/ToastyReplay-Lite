@@ -19,6 +19,7 @@
 #include "hacks/LayoutMode.hpp"
 #include "hacks/Trajectory.hpp"
 #include "i18n/Lang.hpp"
+#include "hacks/IgnoreInputs.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -371,6 +372,8 @@ bool ToastyMenu::init() {
         scroll->m_contentLayer->addChild(this->makeLayoutModeRow());
         scroll->m_contentLayer->addChild(
     this->makeTrajectoryRow());
+
+        scroll->m_contentLayer->addChild(this->makeIgnoreInputsRow());
 
 
         scroll->m_contentLayer->updateLayout();
@@ -1051,6 +1054,18 @@ CCNode* ToastyMenu::makeTrajectoryRow() {
     return row.node;
 }
 
+CCNode* ToastyMenu::makeIgnoreInputsRow() {
+    auto row = this->makeRow("Ignore Inputs", ROW_H, 160.f);
+    row.node->setID("ignore-inputs");
+    auto toggle = CCMenuItemToggler::createWithStandardSprites(
+        this, menu_selector(ToastyMenu::onIgnoreInputsToggle), .6f);
+    placeCenter(toggle, CONTROL_CENTER, ROW_H / 2.f);
+    toggle->toggle(toasty::ignoreinputs::enabled());
+    toggle->setID("ignore-inputs-toggle");
+    row.menu->addChild(toggle);
+    return row.node;
+}
+
 CCNode* ToastyMenu::makeLanguageRow() {
     auto row = this->makeRow("Language", ROW_H, 120.f);
     row.node->setID("language");
@@ -1696,6 +1711,11 @@ void ToastyMenu::onLayoutModeInfo(CCObject*) {
 void ToastyMenu::onTrajectoryToggle(CCObject* sender) {
     auto toggle = static_cast<CCMenuItemToggler*>(sender);
     toasty::trajectory::setEnabled(!toggle->isToggled());
+}
+
+void ToastyMenu::onIgnoreInputsToggle(CCObject* sender) {
+    auto toggle = static_cast<CCMenuItemToggler*>(sender);
+    toasty::ignoreinputs::setEnabled(!toggle->isToggled());
 }
 
 void ToastyMenu::onLanguageToggle(CCObject* sender) {
