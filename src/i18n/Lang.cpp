@@ -33,6 +33,7 @@ static const std::unordered_map<std::string_view, std::string_view> s_id = {
     {"Frame Step",          "Step Frame"},
     {"Toggle Stepper",      "Aktifkan Stepper"},
     {"Show Trajectory",     "Tampilkan Lintasan"},
+    {"Ignore Inputs",       "Abaikan Input"},
 };
 
 Language current() { return s_lang; }
