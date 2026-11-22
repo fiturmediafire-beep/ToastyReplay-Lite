@@ -28,22 +28,7 @@ class $modify(AutoSafeModePlayLayer, PlayLayer) {
     void resetLevel() {
         PlayLayer::resetLevel();
         s_cheats.clear();
-        if (!toasty::engine::playing()) {
-            hasBeenReplaying = false;
-        }
-    }
-
-    void resetLevelFromStart() {
-        PlayLayer::resetLevelFromStart();
-        s_cheats.clear();
-        if (!toasty::engine::playing()) {
-            hasBeenReplaying = false;
-        }
-        }
-
-    void showNewBest(bool newReward, int orbs, int diamonds, bool demonKey, bool noRetry, bool noTitle) {
-        if (isUnsafe()) return;
-        PlayLayer::showNewBest(newReward, orbs, diamonds, demonKey, noRetry, noTitle);
+        hasBeenReplaying = false;
     }
 
     void levelComplete() {
@@ -61,16 +46,7 @@ class $modify(AutoSafeModePlayLayer, PlayLayer) {
         if (object == m_anticheatSpike) {
             return PlayLayer::destroyPlayer(player, object);
         }
-
-        if (!isUnsafe()) {
-            PlayLayer::destroyPlayer(player, object);
-            return;
-        } else {
-            auto previous = m_isTestMode;
-            m_isTestMode = true;
-            PlayLayer::destroyPlayer(player, object);
-            m_isTestMode = previous;
-        }
+        PlayLayer::destroyPlayer(player, object);
     }
     
     void checkValues(float dt) {
@@ -80,8 +56,13 @@ class $modify(AutoSafeModePlayLayer, PlayLayer) {
             }
         }
 
-        if (bool isPlaying = toasty::engine::playing()) {
+        if (toasty::engine::playing()) {
             hasBeenReplaying = true;
         }
+    }
+
+    void showNewBest(bool newReward, int orbs, int diamonds, bool demonKey, bool noRetry, bool noTitle) {
+        if (isUnsafe()) return;
+        PlayLayer::showNewBest(newReward, orbs, diamonds, demonKey, noRetry, noTitle);
     }
 };
