@@ -547,7 +547,7 @@ bool init(GJGameLevel* level, bool dontCreateObjects) {
                         if (toasty::engine::playing()) {
                             toasty::engine::loadReplayAndBegin(selected);
                         }
-                    }, 1.0f, "auto-play-again-delay");
+                    }, 1.0f);
                 }
             } else {
                 toasty::engine::stopPlayback();
