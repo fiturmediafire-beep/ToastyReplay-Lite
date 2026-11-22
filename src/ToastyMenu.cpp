@@ -15,6 +15,7 @@
 #include "timing/TpsBypass.hpp"
 #include "ui/Notifications.hpp"
 #include "ui/StepperButtons.hpp"
+#include "ui/PlaybackButtons.hpp"
 #include "ui/Watermark.hpp"
 #include "hacks/LayoutMode.hpp"
 #include "hacks/Trajectory.hpp"
@@ -375,6 +376,7 @@ bool ToastyMenu::init() {
 
         scroll->m_contentLayer->addChild(this->makeIgnoreInputsRow());
 
+        scroll->m_contentLayer->addChild(this->makeAutoPlayAgainRow());
 
         scroll->m_contentLayer->updateLayout();
         scroll->scrollToTop();
@@ -511,6 +513,8 @@ bool ToastyMenu::init() {
                                 Mod::get()->getSavedValue<bool>("auto-save-macros", true)));
         scroll->m_contentLayer->addChild(
         this->makeLanguageRow());
+
+        scroll->m_contentLayer->addChild(this->makeShowPlaybackButtonsRow());
 
         scroll->m_contentLayer->updateLayout();
         scroll->scrollToTop();
@@ -1062,6 +1066,30 @@ CCNode* ToastyMenu::makeIgnoreInputsRow() {
     placeCenter(toggle, CONTROL_CENTER, ROW_H / 2.f);
     toggle->toggle(toasty::ignoreinputs::enabled());
     toggle->setID("ignore-inputs-toggle");
+    row.menu->addChild(toggle);
+    return row.node;
+}
+
+CCNode* ToastyMenu::makeShowPlaybackButtonsRow() {
+    auto row = this->makeRow("Show Button P&S", ROW_H, 160.f);
+    row.node->setID("show-playback-buttons");
+    auto toggle = CCMenuItemToggler::createWithStandardSprites(
+        this, menu_selector(ToastyMenu::onShowPlaybackButtonsToggle), .6f);
+    placeCenter(toggle, CONTROL_CENTER, ROW_H / 2.f);
+    toggle->toggle(Mod::get()->getSavedValue<bool>("show-playback-buttons", false));
+    toggle->setID("show-playback-buttons-toggle");
+    row.menu->addChild(toggle);
+    return row.node;
+}
+
+CCNode* ToastyMenu::makeAutoPlayAgainRow() {
+    auto row = this->makeRow("Auto Play Again", ROW_H, 160.f);
+    row.node->setID("auto-play-again");
+    auto toggle = CCMenuItemToggler::createWithStandardSprites(
+        this, menu_selector(ToastyMenu::onAutoPlayAgainToggle), .6f);
+    placeCenter(toggle, CONTROL_CENTER, ROW_H / 2.f);
+    toggle->toggle(Mod::get()->getSavedValue<bool>("auto-play-again", false));
+    toggle->setID("auto-play-again-toggle");
     row.menu->addChild(toggle);
     return row.node;
 }
@@ -1716,6 +1744,19 @@ void ToastyMenu::onTrajectoryToggle(CCObject* sender) {
 void ToastyMenu::onIgnoreInputsToggle(CCObject* sender) {
     auto toggle = static_cast<CCMenuItemToggler*>(sender);
     toasty::ignoreinputs::setEnabled(!toggle->isToggled());
+}
+
+void ToastyMenu::onShowPlaybackButtonsToggle(CCObject* sender) {
+    auto toggle = static_cast<CCMenuItemToggler*>(sender);
+    bool on = !toggle->isToggled();
+    Mod::get()->setSavedValue<bool>("show-playback-buttons", on);
+    toasty::ui::refreshPlaybackButtons();
+}
+
+void ToastyMenu::onAutoPlayAgainToggle(CCObject* sender) {
+    auto toggle = static_cast<CCMenuItemToggler*>(sender);
+    bool on = !toggle->isToggled();
+    Mod::get()->setSavedValue<bool>("auto-play-again", on);
 }
 
 void ToastyMenu::onLanguageToggle(CCObject* sender) {
