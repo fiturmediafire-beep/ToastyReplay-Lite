@@ -31,6 +31,11 @@ bool init(GJGameLevel* level, bool useReplay) {
         s_cheats.clear();
         hasBeenReplaying = false;
     }
+    void resetLevelFromStart() {
+        PlayLayer::resetLevelFromStart();
+        s_cheats.clear();
+        hasBeenReplaying = false;
+    }
     void levelComplete() {
         if (!isUnsafe()) {
             PlayLayer::levelComplete();
