@@ -28,14 +28,18 @@ class $modify(AutoSafeModePlayLayer, PlayLayer) {
     void resetLevel() {
         PlayLayer::resetLevel();
         s_cheats.clear();
-        hasBeenReplaying = false;
+        if (!toasty::engine::playing()) {
+            hasBeenReplaying = false;
+        }
     }
 
     void resetLevelFromStart() {
         PlayLayer::resetLevelFromStart();
         s_cheats.clear();
-        hasBeenReplaying = false;
-    }
+        if (!toasty::engine::playing()) {
+            hasBeenReplaying = false;
+        }
+        }
 
     void showNewBest(bool newReward, int orbs, int diamonds, bool demonKey, bool noRetry, bool noTitle) {
         if (isUnsafe()) return;
