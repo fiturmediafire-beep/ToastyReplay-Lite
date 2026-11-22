@@ -204,16 +204,21 @@ class $modify(TrajPlayLayer, PlayLayer) {
         m_objectLayer->addChild(s_node, 500);
     }
 
-    void postUpdate(float dt) {
+      void postUpdate(float dt) {
         PlayLayer::postUpdate(dt);
         if (!toasty::trajectory::enabled() || s_simulating) return;
+        // jangan redraw saat player mati
+        if (!m_player1 || m_player1->m_isDead) {
+            if (s_node) s_node->clear();
+            return;
+        }
         // pastikan s_node selalu ada di objectLayer (bisa hilang setelah resetLevel/record)
         if (s_node && s_node->getParent() != m_objectLayer) {
             if (s_node->getParent()) s_node->removeFromParent();
             m_objectLayer->addChild(s_node, 500);
         }
         if (s_node) s_node->redraw(this, m_player1);
-    }
+}
 
     void destroyPlayer(PlayerObject* player, GameObject* obj) {
         if (s_simulating && s_node && player == s_node->m_ghost) {
