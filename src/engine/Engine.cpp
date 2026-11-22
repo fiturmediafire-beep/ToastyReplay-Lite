@@ -372,7 +372,7 @@ namespace toasty::engine {
 
         toasty::compat::beginSession();
         session->previousTestMode = layer->m_isTestMode;
-        session->changedTestMode = true;
+        session->changedTestMode = false;
         session->tpsOverride = needsOverride;
         layer->m_isTestMode = true;
         session->playback = std::move(replay);
