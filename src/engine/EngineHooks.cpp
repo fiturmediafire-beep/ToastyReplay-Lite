@@ -542,7 +542,12 @@ bool init(GJGameLevel* level, bool dontCreateObjects) {
             if (autoPlayAgain) {
                 auto selected = toasty::engine::selectedReplay();
                 if (!selected.empty()) {
-                    toasty::engine::loadReplayAndBegin(selected);
+                    auto layer = this;
+                    layer->scheduleOnce([selected, layer](float) {
+                        if (toasty::engine::playing()) {
+                            toasty::engine::loadReplayAndBegin(selected);
+                        }
+                    }, 1.0f, "auto-play-again-delay");
                 }
             } else {
                 toasty::engine::stopPlayback();
