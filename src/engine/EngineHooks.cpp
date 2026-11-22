@@ -539,19 +539,14 @@ bool init(GJGameLevel* level, bool dontCreateObjects) {
         if (fields->session.mode == Mode::Play && player && player->m_isDead &&
             !m_isPracticeMode) {
             bool autoPlayAgain = Mod::get()->getSavedValue<bool>("auto-play-again", false);
-              if (autoPlayAgain) {
-                auto selected = toasty::engine::selectedReplay();
-                if (!selected.empty()) {
-                    auto call = CCCallFunc::create(this, callfunc_selector(PlayLayer::resetLevelFromStart));
-                    auto seq = CCSequence::create(CCDelayTime::create(1.0f), call, nullptr);
-                    this->runAction(seq);
-                }
-            } else {
-                toasty::engine::stopPlayback();
-                toasty::notifications::show("Replay stopped after death", NotificationIcon::Warning);
+            if (autoPlayAgain) {
+                // biarkan GD reset natural, session tetap Play, rewind jalan sendiri
+                return;
             }
+            toasty::engine::stopPlayback();
+            toasty::notifications::show("Replay stopped after death", NotificationIcon::Warning);
         }
-        }
+    }
 
     void levelComplete() {
         auto fields = m_fields.self();
