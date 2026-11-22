@@ -539,15 +539,12 @@ bool init(GJGameLevel* level, bool dontCreateObjects) {
         if (fields->session.mode == Mode::Play && player && player->m_isDead &&
             !m_isPracticeMode) {
             bool autoPlayAgain = Mod::get()->getSavedValue<bool>("auto-play-again", false);
-            if (autoPlayAgain) {
+              if (autoPlayAgain) {
                 auto selected = toasty::engine::selectedReplay();
                 if (!selected.empty()) {
-                    auto layer = this;
-                    layer->scheduleOnce([selected, layer](float) {
-                        if (toasty::engine::playing()) {
-                            toasty::engine::loadReplayAndBegin(selected);
-                        }
-                    }, 1.0f);
+                    auto call = CCCallFunc::create(this, callfunc_selector(PlayLayer::resetLevelFromStart));
+                    auto seq = CCSequence::create(CCDelayTime::create(1.0f), call, nullptr);
+                    this->runAction(seq);
                 }
             } else {
                 toasty::engine::stopPlayback();
