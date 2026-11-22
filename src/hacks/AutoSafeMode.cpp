@@ -13,13 +13,12 @@ namespace {
         } else {
             return false;
         }
-        
     }
 } // namespace
 
 class $modify(AutoSafeModePlayLayer, PlayLayer) {
-bool init(GJGameLevel* level, bool useReplay) {
-    if (!PlayLayer::init(level, useReplay)) {
+    bool init(GJGameLevel* level, bool useReplay) {
+        if (!PlayLayer::init(level, useReplay)) {
             return false; 
         }
         this->schedule(schedule_selector(AutoSafeModePlayLayer::checkValues));
@@ -31,11 +30,18 @@ bool init(GJGameLevel* level, bool useReplay) {
         s_cheats.clear();
         hasBeenReplaying = false;
     }
+
     void resetLevelFromStart() {
         PlayLayer::resetLevelFromStart();
         s_cheats.clear();
         hasBeenReplaying = false;
     }
+
+    void showNewBest(bool newReward, int orbs, int diamonds, bool demonKey, bool noRetry, bool noTitle) {
+        if (isUnsafe()) return;
+        PlayLayer::showNewBest(newReward, orbs, diamonds, demonKey, noRetry, noTitle);
+    }
+
     void levelComplete() {
         if (!isUnsafe()) {
             PlayLayer::levelComplete();
@@ -64,7 +70,6 @@ bool init(GJGameLevel* level, bool useReplay) {
     }
     
     void checkValues(float dt) {
-
         for (auto key : {"noclip","speedhack","tps-bypass","frame-stepper","set-seed"}) {
             if (Mod::get()->getSavedValue<bool>(key, false)) {
                 s_cheats.insert(key);
@@ -74,12 +79,5 @@ bool init(GJGameLevel* level, bool useReplay) {
         if (bool isPlaying = toasty::engine::playing()) {
             hasBeenReplaying = true;
         }
-    }
-
-    void showNewBest(bool newReward, int orbs, int diamonds, bool demonKey, bool noRetry, bool noTitle) {
-        if (isUnsafe()) {
-            return;
-        }
-        PlayLayer::showNewBest(newReward, orbs, diamonds, demonKey, noRetry, noTitle);
     }
 };
