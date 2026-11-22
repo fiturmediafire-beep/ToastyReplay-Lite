@@ -538,10 +538,18 @@ bool init(GJGameLevel* level, bool dontCreateObjects) {
         auto fields = m_fields.self();
         if (fields->session.mode == Mode::Play && player && player->m_isDead &&
             !m_isPracticeMode) {
-            toasty::engine::stopPlayback();
-            toasty::notifications::show("Replay stopped after death", NotificationIcon::Warning);
+            bool autoPlayAgain = Mod::get()->getSavedValue<bool>("auto-play-again", false);
+            if (autoPlayAgain) {
+                auto selected = toasty::engine::selectedReplay();
+                if (!selected.empty()) {
+                    toasty::engine::loadReplayAndBegin(selected);
+                }
+            } else {
+                toasty::engine::stopPlayback();
+                toasty::notifications::show("Replay stopped after death", NotificationIcon::Warning);
+            }
         }
-    }
+        }
 
     void levelComplete() {
         auto fields = m_fields.self();
