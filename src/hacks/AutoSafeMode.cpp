@@ -8,7 +8,7 @@ bool hasBeenReplaying;
 
 namespace {
     bool isUnsafe() {
-        if ((!s_cheats.empty() || hasBeenReplaying) && Mod::get()->getSavedValue<bool>("auto-safe-mode", true)) {
+        if ((!s_cheats.empty() || hasBeenReplaying) && Mod::get()->getSavedValue<bool>("auto-safe-mode", false)) {
             return true;
         } else {
             return false;
