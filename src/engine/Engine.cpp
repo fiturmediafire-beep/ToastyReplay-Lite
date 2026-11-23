@@ -374,7 +374,6 @@ namespace toasty::engine {
         session->previousTestMode = layer->m_isTestMode;
         session->changedTestMode = false;
         session->tpsOverride = needsOverride;
-        layer->m_isTestMode = true;
         session->playback = std::move(replay);
         session->mode = Mode::Off;
         if (session->playback->seed) {
