@@ -46,6 +46,7 @@ XDbot and zBot used for platform patches, and general inspiration, go check them
 - Anticroom
 - Human0443
 - Lyn
+- Died100
 
 ### Additional Information
 
