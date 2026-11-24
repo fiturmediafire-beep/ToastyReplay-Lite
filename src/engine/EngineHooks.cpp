@@ -153,6 +153,10 @@ namespace {
     Session const& session,
     GJBaseGameLayer* layer
 ) {
+    if (!layer) {
+        return;
+    }
+
     if (session.mode == Mode::Record &&
         session.recording.seed) {
 
@@ -317,19 +321,46 @@ class $modify(ToastyReplayGameLayer, GJBaseGameLayer) {
         }
     }
 
-    void processCommands(float dt, bool isHalfTick, bool isLastTick) {
-        auto session = this->tickSession();
-        if (!session) {
-            GJBaseGameLayer::processCommands(dt, isHalfTick, isLastTick);
-            return;
-        }
+    void processCommands(
+    float dt,
+    bool isHalfTick,
+    bool isLastTick
+) {
+    auto session = this->tickSession();
 
-        session->processingTick = true;
-        toasty::engine::realignPlayback(PlayLayer::get());
-        this->feedPlaybackInputs(session);
-        GJBaseGameLayer::processCommands(dt, isHalfTick, isLastTick);
-        this->closeTick(session, PlayLayer::get(), isHalfTick);
-        session->processingTick = false;
+    if (!session) {
+        GJBaseGameLayer::processCommands(
+            dt,
+            isHalfTick,
+            isLastTick
+        );
+        return;
+    }
+
+    // Reapply deterministic seed before game RNG processing.
+    applySessionSeed(*session, this);
+
+    session->processingTick = true;
+
+    toasty::engine::realignPlayback(
+        PlayLayer::get()
+    );
+
+    this->feedPlaybackInputs(session);
+
+    GJBaseGameLayer::processCommands(
+        dt,
+        isHalfTick,
+        isLastTick
+    );
+
+    this->closeTick(
+        session,
+        PlayLayer::get(),
+        isHalfTick
+    );
+
+    session->processingTick = false;
     }
 };
 
@@ -377,16 +408,13 @@ bool init(GJGameLevel* level, bool dontCreateObjects) {
     fields->loadedCheckpoint = false;
     fields->session.resetting = true;
 
-    // Apply seed BEFORE the original game reset.
-    // This allows random selection during reset to use the replay seed.
-    applySessionSeed(fields->session, this);
-
     PlayLayer::resetLevel();
 
     fields->session.resetting = wasResetting;
     fields->resettingLevel = false;
 
     if (!fields->loadedCheckpoint) {
+        applySessionSeed(fields->session, this);
         rewind(fields->session);
     }
 }
@@ -399,17 +427,16 @@ void resetLevelFromStart() {
     fields->session.resetting = true;
     fields->checkpoints.clear();
 
-    // Apply seed before resetting the level from the beginning.
-    applySessionSeed(fields->session, this);
-
     PlayLayer::resetLevelFromStart();
 
     fields->session.resetting = wasResetting;
 
+    applySessionSeed(fields->session, this);
+
     rewind(fields->session);
 }
 
-    PracticeCheckpoint snapshotCheckpoint() {
+PracticeCheckpoint snapshotCheckpoint() {
         auto fields = m_fields.self();
         return {
             .tick = fields->session.tick,
