@@ -351,30 +351,45 @@ bool init(GJGameLevel* level, bool dontCreateObjects) {
     }
 
     void resetLevel() {
-        auto fields = m_fields.self();
-        auto wasResetting = fields->session.resetting;
-        fields->resettingLevel = true;
-        fields->loadedCheckpoint = false;
-        fields->session.resetting = true;
-        PlayLayer::resetLevel();
-        fields->session.resetting = wasResetting;
-        fields->resettingLevel = false;
-        if (!fields->loadedCheckpoint) {
-            applySessionSeed(fields->session, this);
-            rewind(fields->session);
-        }
-    }
+    auto fields = m_fields.self();
 
-    void resetLevelFromStart() {
-        auto fields = m_fields.self();
-        auto wasResetting = fields->session.resetting;
-        fields->session.resetting = true;
-        fields->checkpoints.clear();
-        PlayLayer::resetLevelFromStart();
-        fields->session.resetting = wasResetting;
-        applySessionSeed(fields->session, this);
+    auto wasResetting = fields->session.resetting;
+
+    fields->resettingLevel = true;
+    fields->loadedCheckpoint = false;
+    fields->session.resetting = true;
+
+    // Apply seed BEFORE the original game reset.
+    // This allows random selection during reset to use the replay seed.
+    applySessionSeed(fields->session, this);
+
+    PlayLayer::resetLevel();
+
+    fields->session.resetting = wasResetting;
+    fields->resettingLevel = false;
+
+    if (!fields->loadedCheckpoint) {
         rewind(fields->session);
     }
+}
+
+void resetLevelFromStart() {
+    auto fields = m_fields.self();
+
+    auto wasResetting = fields->session.resetting;
+
+    fields->session.resetting = true;
+    fields->checkpoints.clear();
+
+    // Apply seed before resetting the level from the beginning.
+    applySessionSeed(fields->session, this);
+
+    PlayLayer::resetLevelFromStart();
+
+    fields->session.resetting = wasResetting;
+
+    rewind(fields->session);
+}
 
     PracticeCheckpoint snapshotCheckpoint() {
         auto fields = m_fields.self();
