@@ -148,12 +148,29 @@ namespace {
                                                 .gravityMod = player->m_gravityMod});
     }
 
-    void applySessionSeed(Session const& session, GJBaseGameLayer* layer) {
-        if (session.mode == Mode::Record && session.recording.seed) {
-            toasty::seed::apply(layer, *session.recording.seed);
-        } else if (session.mode == Mode::Play && session.playback && session.playback->seed) {
-            toasty::seed::apply(layer, *session.playback->seed);
-        }
+    void applySessionSeed(
+    Session const& session,
+    GJBaseGameLayer* layer
+) {
+    if (session.mode == Mode::Record &&
+        session.recording.seed) {
+
+        toasty::seed::apply(
+            layer,
+            *session.recording.seed
+        );
+
+    } else if (
+        session.mode == Mode::Play &&
+        session.playback &&
+        session.playback->seed
+    ) {
+
+        toasty::seed::apply(
+            layer,
+            *session.playback->seed
+        );
+    }
     }
 } // namespace
 
