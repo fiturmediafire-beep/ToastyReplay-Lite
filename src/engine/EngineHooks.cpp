@@ -149,33 +149,49 @@ namespace {
                                                 .gravityMod = player->m_gravityMod});
     }
 
-    void applySessionSeed(
-    Session const& session,
-    GJBaseGameLayer* layer
-) {
-    if (!layer) {
+    void applySessionSeed(Session const& session, PlayLayer* layer) {
+    if (!layer || !layer->m_player1) {
         return;
     }
 
-    if (session.mode == Mode::Record &&
-        session.recording.seed) {
+    std::optional<uint64_t> baseSeed;
 
-        toasty::seed::apply(
-            layer,
-            *session.recording.seed
-        );
-
-    } else if (
-        session.mode == Mode::Play &&
-        session.playback &&
-        session.playback->seed
-    ) {
-
-        toasty::seed::apply(
-            layer,
-            *session.playback->seed
-        );
+    if (session.mode == Mode::Record && session.recording.seed) {
+        baseSeed = session.recording.seed;
+    } else if (session.mode == Mode::Play &&
+               session.playback &&
+               session.playback->seed) {
+        baseSeed = session.playback->seed;
     }
+
+    if (!baseSeed) {
+        return;
+    }
+
+    int finalSeed;
+
+    if (!layer->m_player1->m_isDead) {
+        std::mt19937 generator(
+            *baseSeed + layer->m_gameState.m_currentProgress
+        );
+
+        std::uniform_int_distribution<int> distribution(
+            10000, 999999999
+        );
+
+        finalSeed = distribution(generator);
+    } else {
+        std::random_device rd;
+        std::mt19937 generator(rd());
+
+        std::uniform_int_distribution<int> distribution(
+            1000, 999999999
+        );
+
+        finalSeed = distribution(generator);
+    }
+
+    GameToolbox::fast_srand(finalSeed);
     }
 } // namespace
 
@@ -342,17 +358,13 @@ class $modify(ToastyReplayGameLayer, GJBaseGameLayer) {
 
     session->processingTick = true;
 
-    toasty::engine::realignPlayback(
-        PlayLayer::get()
-    );
+toasty::engine::realignPlayback(PlayLayer::get());
 
-    this->feedPlaybackInputs(session);
+this->feedPlaybackInputs(session);
 
-    GJBaseGameLayer::processCommands(
-        dt,
-        isHalfTick,
-        isLastTick
-    );
+applySessionSeed(*session, PlayLayer::get());
+
+GJBaseGameLayer::processCommands(dt, isHalfTick, isLastTick);
 
     this->closeTick(
         session,
