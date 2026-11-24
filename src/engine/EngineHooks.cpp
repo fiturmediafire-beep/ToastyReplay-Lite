@@ -168,28 +168,15 @@ namespace {
         return;
     }
 
-    int finalSeed;
-
-    if (!layer->m_player1->m_isDead) {
         std::mt19937 generator(
-            *baseSeed + layer->m_gameState.m_currentProgress
-        );
+        *baseSeed + layer->m_gameState.m_currentProgress
+    );
 
-        std::uniform_int_distribution<int> distribution(
-            10000, 999999999
-        );
+    std::uniform_int_distribution<int> distribution(
+        10000, 999999999
+    );
 
-        finalSeed = distribution(generator);
-    } else {
-        std::random_device rd;
-        std::mt19937 generator(rd());
-
-        std::uniform_int_distribution<int> distribution(
-            1000, 999999999
-        );
-
-        finalSeed = distribution(generator);
-    }
+    int finalSeed = distribution(generator);
 
     GameToolbox::fast_srand(finalSeed);
     }
@@ -354,7 +341,7 @@ class $modify(ToastyReplayGameLayer, GJBaseGameLayer) {
     }
 
     // Reapply deterministic seed before game RNG processing.
-    applySessionSeed(*session, this);
+    applySessionSeed(*session, PlayLayer::get());
 
     session->processingTick = true;
 
