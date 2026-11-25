@@ -11,7 +11,7 @@
 3. Complete the level.
 4. Select the saved macro and press **Replay**.
 
-## Replay Features
+## Replay Featuresss
 
 - Vanilla input recording and playback
 - Practice Fixes
