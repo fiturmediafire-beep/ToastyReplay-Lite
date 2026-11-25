@@ -76,7 +76,7 @@ static constexpr float SCALE_MIN = .7f;
 static constexpr float SCALE_MAX = 1.1f;
 
 static void
-moveCloseTopRight(CCMenuItemSpriteExtra* closeBtn, CCNode* mainLayer, CCSize const& size) {
+moveCloseTopRight(CCNode* closeBtn, CCNode* mainLayer, CCSize const& size) {
     closeBtn->setPosition(closeBtn->getParent()->convertToNodeSpace(
         mainLayer->convertToWorldSpace({size.width - 8.f, size.height - 8.f})));
 }
