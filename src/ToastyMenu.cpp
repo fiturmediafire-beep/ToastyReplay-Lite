@@ -761,7 +761,7 @@ ScrollLayer* ToastyMenu::addScroll(CCNode* page, int tab, CCPoint pos, CCSize si
     scroll->enableScrollWheel(true);
     scroll->m_contentLayer->setLayout(ColumnLayout::create()
                                           ->setAxisReverse(true)
-                                          ->setAxisAlignment(AxisAlignment::End)
+                                          ->setAxisAlignment(AxisAlignment::Start)
                                           ->setAutoGrowAxis(size.height)
                                           ->setGap(4.f));
 
