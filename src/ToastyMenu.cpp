@@ -757,27 +757,14 @@ geode::NineSlice* ToastyMenu::addPanel(CCNode* page, CCPoint center, CCSize size
 
 ScrollLayer* ToastyMenu::addScroll(CCNode* page, int tab, CCPoint pos, CCSize size) {
     auto scroll = ScrollLayer::create(size);
-    scroll->setPosition(pos);
+    scroll->setPosition({pos.x + size.width / 2.f, pos.y + size.height / 2.f});
     scroll->enableScrollWheel(true);
     scroll->m_contentLayer->setLayout(ColumnLayout::create()
                                           ->setAxisReverse(true)
-                                          ->setAxisAlignment(AxisAlignment::Start)
+                                          ->setAxisAlignment(AxisAlignment::End)
                                           ->setAutoGrowAxis(size.height)
                                           ->setGap(4.f));
-
-    auto stencil = CCScale9Sprite::create("square02b_001.png");
-    stencil->setContentSize(size);
-    stencil->setAnchorPoint({0.f, 0.f});
-    stencil->setPosition({0.f, 0.f});
-
-    auto clip = CCClippingNode::create(stencil);
-    clip->setContentSize(size);
-    clip->setPosition(pos);
-    clip->setAlphaThreshold(0.05f);
-    clip->addChild(scroll);
-    scroll->setPosition({0.f, 0.f});
-
-    page->addChild(clip);
+    page->addChild(scroll);
     m_pageTouchNodes[tab].push_back(scroll);
 
     auto bar = Scrollbar::create(scroll);
